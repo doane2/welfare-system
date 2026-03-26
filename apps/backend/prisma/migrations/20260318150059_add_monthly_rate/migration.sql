@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "monthlyRate" DOUBLE PRECISION NOT NULL DEFAULT 200;

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0f2040"/>
+  <title>Offline — Crater SDA Welfare</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: linear-gradient(160deg, #091529 0%, #1e3a6e 60%, #162d57 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #fff;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #1e3a6e, #2d5299);
+      border: 2px solid #e6b020;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Georgia, serif;
+      font-weight: 700;
+      font-size: 24px;
+      color: #e6b020;
+      margin: 0 auto 24px;
+    }
+
+    .icon {
+      font-size: 52px;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    h1 {
+      font-family: Georgia, serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    p {
+      font-size: 15px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .btn {
+      display: inline-block;
+      background: #e6b020;
+      color: #0f2040;
+      padding: 13px 32px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.15s;
+      margin-bottom: 12px;
+      width: 100%;
+    }
+    .btn:hover { opacity: 0.9; }
+
+    .btn-ghost {
+      display: inline-block;
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.7);
+      padding: 13px 32px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.12);
+      cursor: pointer;
+      font-family: inherit;
+      width: 100%;
+      transition: all 0.15s;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.12); }
+
+    .status {
+      margin-top: 24px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      margin-right: 6px;
+      animation: pulse 2s ease infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">CS</div>
+    <span class="icon">📡</span>
+    <h1>You're Offline</h1>
+    <p>
+      It looks like you've lost your internet connection.
+      Check your network and try again — your data is safe.
+    </p>
+
+    <button class="btn" onclick="tryReload()">Try Again</button>
+    <button class="btn-ghost" onclick="goHome()">Go to Home</button>
+
+    <div class="status">
+      <span class="dot"></span>
+      No internet connection detected
+    </div>
+  </div>
+
+  <script>
+    function tryReload() {
+      window.location.reload()
+    }
+    function goHome() {
+      window.location.href = '/'
+    }
+
+    // Auto-reload when connection is restored
+    window.addEventListener('online', () => {
+      window.location.reload()
+    })
+  </script>
+</body>
+</html>

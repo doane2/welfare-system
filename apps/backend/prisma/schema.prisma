@@ -1,0 +1,443 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  TREASURER
+  SECRETARY
+  MEMBER
+}
+
+// ── NEW ───────────────────────────────────────────────────────────────────────
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  ANONYMISED
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PaymentMethod {
+  MPESA
+  BANK
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  PENDING_APPROVAL
+  APPROVED
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum DependentType {
+  CHILD_UNDER_18
+  CHILD_18_25
+  PARENT
+  SIBLING
+  NEXT_OF_KIN
+}
+
+enum BeneficiaryRequestType {
+  ADD
+  UPDATE
+  REMOVE
+}
+
+enum BeneficiaryRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MemberType {
+  FAMILY
+  SINGLE
+}
+
+enum ContributionType {
+  MONTHLY
+  REGISTRATION
+  EMERGENCY
+}
+
+enum ContributionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum ClaimType {
+  MEDICAL
+  DEATH
+  DISABILITY
+  EDUCATION
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum DeceasedEntityType {
+  MEMBER
+  DEPENDENT
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(uuid())
+  fullName         String
+  email            String    @unique
+  phone            String?
+  nationalId       String?   @unique
+  memberNumber     String?   @unique
+  password         String?
+  role             UserRole  @default(MEMBER)
+  otpCode          String?
+  otpExpiry        DateTime?
+
+  activationToken  String?
+  isActive         Boolean   @default(false)
+  profilePhoto     String?
+  memberType       MemberType @default(SINGLE)
+
+  monthlyRate       Float    @default(200)
+  loanLimitOverride Float?
+  loanEligible      Boolean  @default(false)
+
+  // ── Deceased flagging ──────────────────────────────────────────────────
+  isDeceased       Boolean   @default(false)
+  deceasedAt       DateTime?
+  deceasedNotes    String?
+  // ──────────────────────────────────────────────────────────────────────
+
+  // ── NEW: Account status management ────────────────────────────────────
+  accountStatus    AccountStatus @default(ACTIVE)
+  deactivatedAt    DateTime?
+  anonymisedAt     DateTime?
+
+  // ── NEW: Password reset ────────────────────────────────────────────────
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  // ──────────────────────────────────────────────────────────────────────
+
+  groupId          String?
+  group            Group?    @relation(fields: [groupId], references: [id])
+
+  createdByAdminId String?
+  createdByAdmin   User?     @relation("AdminCreatedMembers", fields: [createdByAdminId], references: [id])
+  createdMembers   User[]    @relation("AdminCreatedMembers")
+
+  contributions    Contribution[]  @relation("MemberContributions")
+  approvedContributions Contribution[] @relation("ApprovedContributions")
+  payments         Payment[]
+  claims           Claim[]         @relation("MemberClaims")
+  reviewedClaims   Claim[]         @relation("ReviewedClaims")
+  loans            Loan[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  dependents       Dependent[]     @relation("MemberDependents")
+  beneficiaryRequests          BeneficiaryRequest[] @relation("MemberBeneficiaryRequests")
+  processedBeneficiaryRequests BeneficiaryRequest[] @relation("ProcessedBeneficiaryRequests")
+
+  deceasedRecords  DeceasedRecord[] @relation("MemberDeceasedRecords")
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([email])
+  @@index([memberNumber])
+  @@index([nationalId])
+  @@index([isDeceased])
+  @@index([accountStatus])   // NEW: for filtering by status
+}
+
+model Group {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  members     User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Contribution {
+  id         String             @id @default(uuid())
+  amount     Float
+  type       ContributionType   @default(MONTHLY)
+  period     String?
+  dueDate    DateTime
+  paid       Boolean            @default(false)
+  status     ContributionStatus @default(PENDING)
+
+  userId     String
+  user       User               @relation("MemberContributions", fields: [userId], references: [id])
+
+  approvedById String?
+  approvedBy   User?            @relation("ApprovedContributions", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  payments   Payment[]
+
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([period])
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  amount         Float
+  method         PaymentMethod
+  mpesaRef       String?
+  status         PaymentStatus @default(PENDING)
+  rawWebhook     Json?
+
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+
+  contributionId String?
+  contribution   Contribution? @relation(fields: [contributionId], references: [id])
+
+  createdAt      DateTime      @default(now())
+
+  @@index([userId])
+  @@index([mpesaRef])
+}
+
+model Claim {
+  id           String      @id @default(uuid())
+  type         ClaimType
+  title        String
+  description  String
+  amount       Float?
+  status       ClaimStatus @default(PENDING)
+
+  userId       String
+  user         User        @relation("MemberClaims", fields: [userId], references: [id])
+
+  reviewedById String?
+  reviewedBy   User?       @relation("ReviewedClaims", fields: [reviewedById], references: [id])
+
+  documents    ClaimDocument[]
+  rejectionReason  String?
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model ClaimDocument {
+  id         String   @id @default(uuid())
+  url        String
+  filename   String
+  mimeType   String?
+
+  claimId    String
+  claim      Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  uploadedAt DateTime @default(now())
+
+  @@index([claimId])
+}
+
+model BeneficiaryRequest {
+  id          String                   @id @default(uuid())
+  type        BeneficiaryRequestType
+  status      BeneficiaryRequestStatus @default(PENDING)
+
+  memberId    String
+  member      User                     @relation("MemberBeneficiaryRequests", fields: [memberId], references: [id])
+
+  dependentId String?
+
+  fullName        String?
+  dependentType   String?
+  dateOfBirth     DateTime?
+  nationalId      String?
+  birthCertNumber String?
+  phone           String?
+  relationship    String?
+  notes           String?
+
+  processedById   String?
+  processedBy     User?    @relation("ProcessedBeneficiaryRequests", fields: [processedById], references: [id])
+  processedAt     DateTime?
+  rejectionReason String?
+
+  createdDependentId String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([memberId])
+  @@index([status])
+}
+
+model Loan {
+  id                 String     @id @default(uuid())
+  principal          Float
+  interestRate       Float
+  status             LoanStatus @default(PENDING)
+  repaymentSchedule  Json?
+
+  userId             String
+  user               User       @relation(fields: [userId], references: [id])
+  documentUrl        String?
+
+  activatedById      String?
+  loanLimitSnapshot  Float?
+  notes              String?
+
+  repayments         LoanRepayment[]
+
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model LoanRepayment {
+  id        String   @id @default(uuid())
+  amount    Float
+
+  loanId    String
+  loan      Loan     @relation(fields: [loanId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([loanId])
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  channel   NotificationChannel @default(IN_APP)
+  title     String
+  message   String
+  read      Boolean             @default(false)
+  status    NotificationStatus  @default(PENDING)
+  sentAt    DateTime?
+
+  userId    String
+  user      User                @relation(fields: [userId], references: [id])
+
+  createdAt DateTime            @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity, entityId])
+}
+
+model Dependent {
+  id              String        @id @default(uuid())
+  fullName        String
+  type            DependentType
+  dateOfBirth     DateTime?
+  nationalId      String?
+  birthCertNumber String?
+  phone           String?
+  relationship    String?
+  notified        Boolean       @default(false)
+
+  // ── Deceased flagging ──────────────────────────────────────────────────
+  isDeceased      Boolean   @default(false)
+  deceasedAt      DateTime?
+  deceasedNotes   String?
+  // ──────────────────────────────────────────────────────────────────────
+
+  memberId        String
+  member          User          @relation("MemberDependents", fields: [memberId], references: [id], onDelete: Cascade)
+
+  addedById       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  deceasedRecords DeceasedRecord[] @relation("DependentDeceasedRecords")
+
+  @@index([memberId])
+}
+
+model DeceasedRecord {
+  id             String             @id @default(uuid())
+  entityType     DeceasedEntityType
+  entityId       String
+
+  memberId       String?
+  member         User?              @relation("MemberDeceasedRecords", fields: [memberId], references: [id])
+
+  dependentId    String?
+  dependent      Dependent?         @relation("DependentDeceasedRecords", fields: [dependentId], references: [id])
+
+  deceasedAt     DateTime
+  notes          String?
+  flaggedById    String
+  flaggedAt      DateTime           @default(now())
+
+  isReversed     Boolean            @default(false)
+  reversedById   String?
+  reversedAt     DateTime?
+  reversalReason String?
+
+  @@index([entityType, entityId])
+  @@index([memberId])
+  @@index([dependentId])
+}
+
+model Announcement {
+  id            String   @id @default(uuid())
+  title         String
+  content       String
+  active        Boolean  @default(true)
+  priority      Boolean  @default(false)
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
