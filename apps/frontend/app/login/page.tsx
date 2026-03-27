@@ -224,7 +224,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-root">
-      <style>{css}</style>
+      <style dangerouslySetInnerHTML={{ __html: css }} />
 
       {/* ── LEFT — branding ──────────────────────────────────────────────── */}
       <div className="login-left">

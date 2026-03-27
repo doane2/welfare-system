@@ -241,7 +241,7 @@ export default function LandingPage() {
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <style>{css}</style>
+      <style dangerouslySetInnerHTML={{ __html: css }} />
 
       {/* ── NAVBAR ── */}
       <header style={{
