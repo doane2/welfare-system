@@ -1,3 +1,16 @@
+/**
+ * controllers/membersController.js  (optimized)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Changes vs original:
+ *  • getMembers      — cache-aside with 5-min TTL, keyed on full query string
+ *  • getMemberById   — cache-aside with 10-min TTL, keyed on member id
+ *  • createMember    — invalidates members:* + dashboard:* on success
+ *  • updateMember    — invalidates specific detail key + members list keys
+ *  • deleteMember    — invalidates specific detail key + members list keys
+ *  • activate/deactivate/anonymise/sendResetLink — each busts member cache
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 const { v4: uuidv4 } = require("uuid")
 const prisma          = require("../lib/prisma")
 const {
@@ -6,6 +19,13 @@ const {
   sendAccountStatusEmail,
 } = require("../services/emailService")
 const bcrypt = require("bcrypt")
+const {
+  withCache,
+  cacheDel,
+  cacheInvalidatePattern,
+  TTL,
+  keys,
+} = require("../lib/redis")
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 const generateMemberNumber = () => {
@@ -37,6 +57,14 @@ const safeMemberFields = (user) => ({
   createdAt:         user.createdAt,
   updatedAt:         user.updatedAt,
 })
+
+// Helper — build a stable cache key from the request query params
+const buildListCacheKey = (query) => {
+  const { page = 1, limit = 10, search = "", isActive, include, accountStatus } = query
+  return keys.membersList(
+    `p${page}_l${limit}_s${search}_ia${isActive || ""}_as${accountStatus || ""}_inc${include || ""}`
+  )
+}
 
 // ─── CREATE MEMBER ─────────────────────────────────────────────────────────────
 exports.createMember = async (req, res) => {
@@ -96,6 +124,12 @@ exports.createMember = async (req, res) => {
       return res.status(500).json({ message: "Failed to send activation email. Please try again." })
     }
 
+    // ── Invalidate all member list caches and dashboard ──────────────────────
+    await Promise.all([
+      cacheInvalidatePattern("members:list:*"),
+      cacheInvalidatePattern("dashboard:*"),
+    ])
+
     if (req.user?.id) {
       await prisma.auditLog.create({
         data: { action: "CREATE_MEMBER", entity: "User", entityId: user.id, userId: req.user.id },
@@ -116,8 +150,23 @@ exports.createMember = async (req, res) => {
 // ─── GET ALL MEMBERS ───────────────────────────────────────────────────────────
 exports.getMembers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", isActive, include, accountStatus } = req.query
+    const {
+      page = 1, limit = 10, search = "",
+      isActive, include, accountStatus,
+    } = req.query
     const skip = (parseInt(page) - 1) * parseInt(limit)
+
+    // ── Cache-aside: only cache simple, no-include requests ─────────────────
+    const cacheKey    = buildListCacheKey(req.query)
+    const isCacheable = !include || include === "group"
+
+    if (isCacheable) {
+      const cached = await withCache(cacheKey, TTL.MEMBERS_LIST, async () => null)
+      if (cached) {
+        console.log("⚡ Cache HIT:", cacheKey)
+        return res.json(cached)
+      }
+    }
 
     const whereClause = {
       role: "MEMBER",
@@ -203,13 +252,23 @@ exports.getMembers = async (req, res) => {
       return safe
     })
 
-    res.json({
+    const response = {
       page:       parseInt(page),
       limit:      parseInt(limit),
       total,
       totalPages: Math.ceil(total / parseInt(limit)),
       members:    safeMembers,
-    })
+    }
+
+    // ── Populate cache for cacheable requests ────────────────────────────────
+    if (isCacheable) {
+      await withCache(cacheKey, TTL.MEMBERS_LIST, async () => response)
+      // withCache only calls fetchFn on miss — set directly instead
+      const { cacheSet } = require("../lib/redis")
+      await cacheSet(cacheKey, response, TTL.MEMBERS_LIST)
+    }
+
+    res.json(response)
 
   } catch (error) {
     console.error("❌ getMembers error:", error.message)
@@ -221,6 +280,23 @@ exports.getMembers = async (req, res) => {
 exports.getMemberById = async (req, res) => {
   try {
     const { id } = req.params
+
+    // ── Cache-aside ──────────────────────────────────────────────────────────
+    const cacheKey = keys.memberDetail(id)
+    const { cacheGet, cacheSet } = require("../lib/redis")
+    const cached = await cacheGet(cacheKey)
+
+    if (cached) {
+      console.log("⚡ Cache HIT:", cacheKey)
+      // Still enforce access control even on cache hit
+      if (
+        req.user.id !== id &&
+        !["SUPER_ADMIN", "TREASURER", "SECRETARY"].includes(req.user.role)
+      ) {
+        return res.status(403).json({ message: "Access denied" })
+      }
+      return res.json({ member: cached })
+    }
 
     const member = await prisma.user.findUnique({
       where:   { id },
@@ -239,13 +315,16 @@ exports.getMemberById = async (req, res) => {
       return res.status(403).json({ message: "Access denied" })
     }
 
-    res.json({
-      member: {
-        ...safeMemberFields(member),
-        group:      member.group,
-        dependents: member.dependents || [],
-      },
-    })
+    const safeData = {
+      ...safeMemberFields(member),
+      group:      member.group,
+      dependents: member.dependents || [],
+    }
+
+    // ── Populate cache ───────────────────────────────────────────────────────
+    await cacheSet(cacheKey, safeData, TTL.MEMBER_DETAIL)
+
+    res.json({ member: safeData })
 
   } catch (error) {
     console.error("❌ getMemberById error:", error.message)
@@ -302,6 +381,13 @@ exports.updateMember = async (req, res) => {
 
     const updated = await prisma.user.update({ where: { id }, data: updateData })
 
+    // ── Invalidate this member's detail cache + all list caches ─────────────
+    await Promise.all([
+      cacheDel(keys.memberDetail(id)),
+      cacheInvalidatePattern("members:list:*"),
+      cacheInvalidatePattern("dashboard:*"),
+    ])
+
     await prisma.auditLog.create({
       data: { action: "UPDATE_MEMBER", entity: "User", entityId: id, userId: req.user.id },
     }).catch(e => console.error("⚠️ Audit log failed:", e.message))
@@ -327,6 +413,13 @@ exports.deleteMember = async (req, res) => {
 
     await prisma.user.delete({ where: { id } })
 
+    // ── Bust detail + all list pages ─────────────────────────────────────────
+    await Promise.all([
+      cacheDel(keys.memberDetail(id)),
+      cacheInvalidatePattern("members:list:*"),
+      cacheInvalidatePattern("dashboard:*"),
+    ])
+
     if (req.user?.id) {
       await prisma.auditLog.create({
         data: { action: "DELETE_MEMBER", entity: "User", entityId: id, userId: req.user.id },
@@ -343,8 +436,6 @@ exports.deleteMember = async (req, res) => {
 }
 
 // ─── ACTIVATE MEMBER ──────────────────────────────────────────────────────────
-// POST /api/members/:id/activate
-// Super admin re-enables a previously deactivated account.
 exports.activateMember = async (req, res) => {
   try {
     const { id } = req.params
@@ -364,24 +455,20 @@ exports.activateMember = async (req, res) => {
 
     const updated = await prisma.user.update({
       where: { id },
-      data:  {
-        accountStatus: "ACTIVE",
-        isActive:      true,
-        deactivatedAt: null,
-      },
+      data:  { accountStatus: "ACTIVE", isActive: true, deactivatedAt: null },
     })
+
+    await Promise.all([
+      cacheDel(keys.memberDetail(id)),
+      cacheInvalidatePattern("members:list:*"),
+    ])
 
     await prisma.auditLog.create({
       data: { action: "ACTIVATE_MEMBER", entity: "User", entityId: id, userId: req.user.id },
     }).catch(e => console.error("⚠️ Audit log failed:", e.message))
 
-    // Notify member
     try {
-      await sendAccountStatusEmail({
-        email:    member.email,
-        fullName: member.fullName,
-        status:   "ACTIVE",
-      })
+      await sendAccountStatusEmail({ email: member.email, fullName: member.fullName, status: "ACTIVE" })
     } catch (emailError) {
       console.error("⚠️ Status email failed (non-fatal):", emailError.message)
     }
@@ -396,8 +483,6 @@ exports.activateMember = async (req, res) => {
 }
 
 // ─── DEACTIVATE MEMBER ────────────────────────────────────────────────────────
-// POST /api/members/:id/deactivate
-// Soft-disables the account — member cannot log in but all data is retained.
 exports.deactivateMember = async (req, res) => {
   try {
     const { id } = req.params
@@ -417,24 +502,20 @@ exports.deactivateMember = async (req, res) => {
 
     const updated = await prisma.user.update({
       where: { id },
-      data:  {
-        accountStatus: "INACTIVE",
-        isActive:      false,
-        deactivatedAt: new Date(),
-      },
+      data:  { accountStatus: "INACTIVE", isActive: false, deactivatedAt: new Date() },
     })
+
+    await Promise.all([
+      cacheDel(keys.memberDetail(id)),
+      cacheInvalidatePattern("members:list:*"),
+    ])
 
     await prisma.auditLog.create({
       data: { action: "DEACTIVATE_MEMBER", entity: "User", entityId: id, userId: req.user.id },
     }).catch(e => console.error("⚠️ Audit log failed:", e.message))
 
-    // Notify member
     try {
-      await sendAccountStatusEmail({
-        email:    member.email,
-        fullName: member.fullName,
-        status:   "INACTIVE",
-      })
+      await sendAccountStatusEmail({ email: member.email, fullName: member.fullName, status: "INACTIVE" })
     } catch (emailError) {
       console.error("⚠️ Status email failed (non-fatal):", emailError.message)
     }
@@ -449,9 +530,6 @@ exports.deactivateMember = async (req, res) => {
 }
 
 // ─── ANONYMISE MEMBER ─────────────────────────────────────────────────────────
-// POST /api/members/:id/anonymise
-// ⚠️  IRREVERSIBLE — replaces all PII with anonymised values.
-// Use only upon verified member request (GDPR / data privacy compliance).
 exports.anonymiseMember = async (req, res) => {
   try {
     const { id } = req.params
@@ -465,44 +543,42 @@ exports.anonymiseMember = async (req, res) => {
       return res.status(400).json({ message: "Member account is already anonymised" })
     }
 
-    // Capture real email before we wipe it — needed to send the final notification
     const realEmail    = member.email
     const realFullName = member.fullName
-
-    const anonSuffix = id.slice(0, 8)
+    const anonSuffix   = id.slice(0, 8)
 
     const updated = await prisma.user.update({
       where: { id },
       data:  {
-        // ── Replace all PII ──────────────────────────────────────────────
-        fullName:      `Anonymised_${anonSuffix}`,
-        email:         `anon_${anonSuffix}@deleted.local`,
-        phone:         null,
-        nationalId:    null,
-        profilePhoto:  null,
-        // ── Lock the account ─────────────────────────────────────────────
-        accountStatus: "ANONYMISED",
-        isActive:      false,
-        password:      null,
-        activationToken: null,
-        resetToken:    null,
+        fullName:         `Anonymised_${anonSuffix}`,
+        email:            `anon_${anonSuffix}@deleted.local`,
+        phone:            null,
+        nationalId:       null,
+        profilePhoto:     null,
+        accountStatus:    "ANONYMISED",
+        isActive:         false,
+        password:         null,
+        activationToken:  null,
+        resetToken:       null,
         resetTokenExpiry: null,
-        anonymisedAt:  new Date(),
-        deactivatedAt: new Date(),
+        anonymisedAt:     new Date(),
+        deactivatedAt:    new Date(),
       },
     })
+
+    // ── Bust all caches for this member immediately ──────────────────────────
+    await Promise.all([
+      cacheDel(keys.memberDetail(id)),
+      cacheInvalidatePattern("members:list:*"),
+      cacheInvalidatePattern("dashboard:*"),
+    ])
 
     await prisma.auditLog.create({
       data: { action: "ANONYMISE_MEMBER", entity: "User", entityId: id, userId: req.user.id },
     }).catch(e => console.error("⚠️ Audit log failed:", e.message))
 
-    // Send final notification to the real email before it is gone
     try {
-      await sendAccountStatusEmail({
-        email:    realEmail,
-        fullName: realFullName,
-        status:   "ANONYMISED",
-      })
+      await sendAccountStatusEmail({ email: realEmail, fullName: realFullName, status: "ANONYMISED" })
     } catch (emailError) {
       console.error("⚠️ Anonymisation email failed (non-fatal):", emailError.message)
     }
@@ -517,9 +593,6 @@ exports.anonymiseMember = async (req, res) => {
 }
 
 // ─── SEND PASSWORD RESET LINK ─────────────────────────────────────────────────
-// POST /api/members/:id/send-reset-link
-// Super admin triggers a password reset email on behalf of a member.
-// Generates a fresh signed token valid for 24 hours (single-use).
 exports.sendResetLink = async (req, res) => {
   try {
     const { id } = req.params
@@ -538,28 +611,20 @@ exports.sendResetLink = async (req, res) => {
     }
 
     const resetToken       = uuidv4()
-    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-    await prisma.user.update({
-      where: { id },
-      data:  { resetToken, resetTokenExpiry },
-    })
+    await prisma.user.update({ where: { id }, data: { resetToken, resetTokenExpiry } })
 
     try {
-      await sendPasswordResetEmail({
-        email:    member.email,
-        fullName: member.fullName,
-        token:    resetToken,
-      })
+      await sendPasswordResetEmail({ email: member.email, fullName: member.fullName, token: resetToken })
     } catch (emailError) {
-      // Roll back token on email failure so it can be retried cleanly
-      await prisma.user.update({
-        where: { id },
-        data:  { resetToken: null, resetTokenExpiry: null },
-      })
+      await prisma.user.update({ where: { id }, data: { resetToken: null, resetTokenExpiry: null } })
       console.error("❌ Reset email failed:", emailError.message)
       return res.status(500).json({ message: "Failed to send password reset email. Please try again." })
     }
+
+    // Bust detail cache since resetToken/Expiry changed
+    await cacheDel(keys.memberDetail(id))
 
     await prisma.auditLog.create({
       data: { action: "SEND_RESET_LINK", entity: "User", entityId: id, userId: req.user.id },
