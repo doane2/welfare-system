@@ -1,3 +1,14 @@
+// prisma/schema.prisma  (DB-optimized)
+// ─────────────────────────────────────────────────────────────────────────────
+// Changes vs original:
+//   • Added composite indexes on high-traffic query patterns
+//   • Added covering indexes to avoid table-lookups on list queries
+//   • Annotated every new index with WHY it was added
+//
+// After editing run:
+//   npx prisma migrate dev --name add_performance_indexes
+// ─────────────────────────────────────────────────────────────────────────────
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,13 +26,11 @@ enum UserRole {
   MEMBER
 }
 
-// ── NEW ───────────────────────────────────────────────────────────────────────
 enum AccountStatus {
   ACTIVE
   INACTIVE
   ANONYMISED
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
 enum PaymentMethod {
   MPESA
@@ -115,75 +124,83 @@ enum DeceasedEntityType {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id               String    @id @default(uuid())
+  id               String        @id @default(uuid())
   fullName         String
-  email            String    @unique
+  email            String        @unique
   phone            String?
-  nationalId       String?   @unique
-  memberNumber     String?   @unique
+  nationalId       String?       @unique
+  memberNumber     String?       @unique
   password         String?
-  role             UserRole  @default(MEMBER)
+  role             UserRole      @default(MEMBER)
   otpCode          String?
   otpExpiry        DateTime?
 
   activationToken  String?
-  isActive         Boolean   @default(false)
+  isActive         Boolean       @default(false)
   profilePhoto     String?
-  memberType       MemberType @default(SINGLE)
+  memberType       MemberType    @default(SINGLE)
 
-  monthlyRate       Float    @default(200)
+  monthlyRate       Float        @default(200)
   loanLimitOverride Float?
-  loanEligible      Boolean  @default(false)
+  loanEligible      Boolean      @default(false)
 
-  // ── Deceased flagging ──────────────────────────────────────────────────
-  isDeceased       Boolean   @default(false)
+  isDeceased       Boolean       @default(false)
   deceasedAt       DateTime?
   deceasedNotes    String?
-  // ──────────────────────────────────────────────────────────────────────
 
-  // ── NEW: Account status management ────────────────────────────────────
   accountStatus    AccountStatus @default(ACTIVE)
   deactivatedAt    DateTime?
   anonymisedAt     DateTime?
 
-  // ── NEW: Password reset ────────────────────────────────────────────────
   resetToken       String?
   resetTokenExpiry DateTime?
-  // ──────────────────────────────────────────────────────────────────────
 
   groupId          String?
-  group            Group?    @relation(fields: [groupId], references: [id])
+  group            Group?        @relation(fields: [groupId], references: [id])
 
   createdByAdminId String?
-  createdByAdmin   User?     @relation("AdminCreatedMembers", fields: [createdByAdminId], references: [id])
-  createdMembers   User[]    @relation("AdminCreatedMembers")
+  createdByAdmin   User?         @relation("AdminCreatedMembers", fields: [createdByAdminId], references: [id])
+  createdMembers   User[]        @relation("AdminCreatedMembers")
 
-  contributions    Contribution[]  @relation("MemberContributions")
+  contributions    Contribution[]   @relation("MemberContributions")
   approvedContributions Contribution[] @relation("ApprovedContributions")
   payments         Payment[]
-  claims           Claim[]         @relation("MemberClaims")
-  reviewedClaims   Claim[]         @relation("ReviewedClaims")
+  claims           Claim[]          @relation("MemberClaims")
+  reviewedClaims   Claim[]          @relation("ReviewedClaims")
   loans            Loan[]
   notifications    Notification[]
   auditLogs        AuditLog[]
-  dependents       Dependent[]     @relation("MemberDependents")
+  dependents       Dependent[]      @relation("MemberDependents")
   beneficiaryRequests          BeneficiaryRequest[] @relation("MemberBeneficiaryRequests")
   processedBeneficiaryRequests BeneficiaryRequest[] @relation("ProcessedBeneficiaryRequests")
-
   deceasedRecords  DeceasedRecord[] @relation("MemberDeceasedRecords")
 
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
+  // ── Original single-column indexes ────────────────────────────────────────
   @@index([email])
   @@index([memberNumber])
   @@index([nationalId])
   @@index([isDeceased])
-  @@index([accountStatus])   // NEW: for filtering by status
+  @@index([accountStatus])
+
+  // ── NEW composite indexes ──────────────────────────────────────────────────
+  // getMembers filters role=MEMBER + accountStatus + orderBy createdAt
+  @@index([role, accountStatus, createdAt(sort: Desc)])
+
+  // getMembers filters role=MEMBER + isActive — common admin filter
+  @@index([role, isActive, createdAt(sort: Desc)])
+
+  // Full-text search fallback: role + groupId for group-filtered lists
+  @@index([role, groupId])
+
+  // Dashboard: count active members quickly
+  @@index([role, accountStatus, isActive])
 }
 
 model Group {
-  id          String  @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   description String?
   members     User[]
@@ -212,8 +229,19 @@ model Contribution {
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([userId])
   @@index([period])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Fetch unpaid contributions for a member — very common in dashboard
+  @@index([userId, paid, type])
+
+  // Reports: filter by period + status across all members
+  @@index([period, status])
+
+  // Dashboard: count pending contributions
+  @@index([status, type, createdAt(sort: Desc)])
 }
 
 model Payment {
@@ -232,8 +260,16 @@ model Payment {
 
   createdAt      DateTime      @default(now())
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([userId])
   @@index([mpesaRef])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Reconciliation: find payments by status + date range
+  @@index([status, createdAt(sort: Desc)])
+
+  // Link payment → contribution efficiently
+  @@index([contributionId])
 }
 
 model Claim {
@@ -256,8 +292,16 @@ model Claim {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([userId])
   @@index([status])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Admin claim list filtered by status + date
+  @@index([status, createdAt(sort: Desc)])
+
+  // Member's claim history by type
+  @@index([userId, type, status])
 }
 
 model ClaimDocument {
@@ -283,7 +327,6 @@ model BeneficiaryRequest {
   member      User                     @relation("MemberBeneficiaryRequests", fields: [memberId], references: [id])
 
   dependentId String?
-
   fullName        String?
   dependentType   String?
   dateOfBirth     DateTime?
@@ -297,14 +340,18 @@ model BeneficiaryRequest {
   processedBy     User?    @relation("ProcessedBeneficiaryRequests", fields: [processedById], references: [id])
   processedAt     DateTime?
   rejectionReason String?
-
   createdDependentId String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([memberId])
   @@index([status])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Admin queue: pending requests ordered by date
+  @@index([status, createdAt(sort: Desc)])
 }
 
 model Loan {
@@ -327,8 +374,16 @@ model Loan {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([userId])
   @@index([status])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Member loan history by status
+  @@index([userId, status])
+
+  // Admin: active loans sorted by date
+  @@index([status, createdAt(sort: Desc)])
 }
 
 model LoanRepayment {
@@ -357,8 +412,13 @@ model Notification {
 
   createdAt DateTime            @default(now())
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([userId])
   @@index([status])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Notification bell: unread count per user — extremely hot path
+  @@index([userId, read, createdAt(sort: Desc)])
 }
 
 model AuditLog {
@@ -372,8 +432,16 @@ model AuditLog {
 
   createdAt DateTime @default(now())
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([userId])
   @@index([entity, entityId])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Timeline view: filter by entity + date
+  @@index([entity, createdAt(sort: Desc)])
+
+  // Admin audit trail sorted by most recent
+  @@index([createdAt(sort: Desc)])
 }
 
 model Dependent {
@@ -387,11 +455,9 @@ model Dependent {
   relationship    String?
   notified        Boolean       @default(false)
 
-  // ── Deceased flagging ──────────────────────────────────────────────────
-  isDeceased      Boolean   @default(false)
+  isDeceased      Boolean       @default(false)
   deceasedAt      DateTime?
   deceasedNotes   String?
-  // ──────────────────────────────────────────────────────────────────────
 
   memberId        String
   member          User          @relation("MemberDependents", fields: [memberId], references: [id], onDelete: Cascade)
@@ -402,7 +468,12 @@ model Dependent {
 
   deceasedRecords DeceasedRecord[] @relation("DependentDeceasedRecords")
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([memberId])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Filter living vs deceased dependents per member
+  @@index([memberId, isDeceased])
 }
 
 model DeceasedRecord {
@@ -426,9 +497,14 @@ model DeceasedRecord {
   reversedAt     DateTime?
   reversalReason String?
 
+  // ── Original ───────────────────────────────────────────────────────────────
   @@index([entityType, entityId])
   @@index([memberId])
   @@index([dependentId])
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Reports: non-reversed records sorted by date
+  @@index([isReversed, flaggedAt(sort: Desc)])
 }
 
 model Announcement {
@@ -440,4 +516,8 @@ model Announcement {
   attachmentUrl String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // ── NEW ────────────────────────────────────────────────────────────────────
+  // Home page: active + priority announcements only
+  @@index([active, priority, createdAt(sort: Desc)])
 }
