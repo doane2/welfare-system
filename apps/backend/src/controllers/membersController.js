@@ -20,8 +20,9 @@ const {
 } = require("../services/emailService")
 const bcrypt = require("bcrypt")
 const {
-  withCache,
   cacheDel,
+  cacheGet,
+  cacheSet,
   cacheInvalidatePattern,
   TTL,
   keys,
@@ -156,18 +157,19 @@ exports.getMembers = async (req, res) => {
     } = req.query
     const skip = (parseInt(page) - 1) * parseInt(limit)
 
-    // ── Cache-aside: only cache simple, no-include requests ─────────────────
     const cacheKey    = buildListCacheKey(req.query)
     const isCacheable = !include || include === "group"
 
+    // ── Cache-aside: check Redis first ───────────────────────────────────────
     if (isCacheable) {
-      const cached = await withCache(cacheKey, TTL.MEMBERS_LIST, async () => null)
+      const cached = await cacheGet(cacheKey)
       if (cached) {
         console.log("⚡ Cache HIT:", cacheKey)
         return res.json(cached)
       }
     }
 
+    // ── Build where clause ───────────────────────────────────────────────────
     const whereClause = {
       role: "MEMBER",
       ...(isActive !== undefined && { isActive: isActive === "true" }),
@@ -260,12 +262,10 @@ exports.getMembers = async (req, res) => {
       members:    safeMembers,
     }
 
-    // ── Populate cache for cacheable requests ────────────────────────────────
+    // ── Populate cache on miss ────────────────────────────────────────────────
     if (isCacheable) {
-      await withCache(cacheKey, TTL.MEMBERS_LIST, async () => response)
-      // withCache only calls fetchFn on miss — set directly instead
-      const { cacheSet } = require("../lib/redis")
       await cacheSet(cacheKey, response, TTL.MEMBERS_LIST)
+      console.log("💾 Cache SET:", cacheKey)
     }
 
     res.json(response)
@@ -283,8 +283,7 @@ exports.getMemberById = async (req, res) => {
 
     // ── Cache-aside ──────────────────────────────────────────────────────────
     const cacheKey = keys.memberDetail(id)
-    const { cacheGet, cacheSet } = require("../lib/redis")
-    const cached = await cacheGet(cacheKey)
+    const cached   = await cacheGet(cacheKey)
 
     if (cached) {
       console.log("⚡ Cache HIT:", cacheKey)
@@ -323,6 +322,7 @@ exports.getMemberById = async (req, res) => {
 
     // ── Populate cache ───────────────────────────────────────────────────────
     await cacheSet(cacheKey, safeData, TTL.MEMBER_DETAIL)
+    console.log("💾 Cache SET:", cacheKey)
 
     res.json({ member: safeData })
 
@@ -623,7 +623,7 @@ exports.sendResetLink = async (req, res) => {
       return res.status(500).json({ message: "Failed to send password reset email. Please try again." })
     }
 
-    // Bust detail cache since resetToken/Expiry changed
+    // ── Bust detail cache since resetToken/Expiry changed ────────────────────
     await cacheDel(keys.memberDetail(id))
 
     await prisma.auditLog.create({
