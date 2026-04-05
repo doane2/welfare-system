@@ -1,9 +1,7 @@
 import axios from 'axios'
 
-const API_BASE =
-  typeof window === 'undefined'
-    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api`
-    : '/api'
+// Use the environment variable for both Server and Client side
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api`
 
 const api = axios.create({
   baseURL: API_BASE,
