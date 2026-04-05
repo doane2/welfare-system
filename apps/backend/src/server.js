@@ -1,11 +1,9 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * Changes vs original:
- *   • Prisma connection pool size set via DATABASE_URL param
- *   • Redis client initialised at startup with health check
- *   • Backup scheduler wired in (runs daily at 02:00 EAT)
- *   • /health endpoint now reports Redis + DB status
- *   • Graceful shutdown: closes Redis + Prisma on SIGTERM/SIGINT
+ * Final Production server.js
+ * • Pattern-matching CORS for infinite subdomains.
+ * • Railway '0.0.0.0' binding.
+ * • Redis + Prisma Health Tracking.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -14,7 +12,7 @@ require("dotenv").config()
 const express = require("express")
 const cors    = require("cors")
 
-// ── Phase 1 routes ────────────────────────────────────────────────────────────
+// ── Routes ──────────────────────────────────────────────────────────────────
 const authRoutes            = require("./routes/auth")
 const membersRoutes         = require("./routes/members")
 const groupsRoutes          = require("./routes/groups")
@@ -26,45 +24,57 @@ const loanRepaymentsRoutes  = require("./routes/loanRepayments")
 const notificationsRoutes   = require("./routes/notifications")
 const announcementsRoutes   = require("./routes/announcements")
 const uploadsRoutes         = require("./routes/uploads")
-
-// ── Phase 2 routes ────────────────────────────────────────────────────────────
 const dashboardRoutes           = require("./routes/dashboard")
 const mpesaRoutes               = require("./routes/mpesa")
 const beneficiaryRequestsRoutes = require("./routes/beneficiaryRequests")
-
-// ── Phase 3 routes ────────────────────────────────────────────────────────────
 const reportsRoutes   = require("./routes/reports")
-
-// ── Phase 4 routes ────────────────────────────────────────────────────────────
 const auditLogsRoutes = require("./routes/auditLogs")
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
-const prisma            = require("./lib/prisma")
+const prisma = require("./lib/prisma")
 const { getClient: getRedis } = require("./lib/redis")
 
-// ── Backup scheduler (runs daily at 02:00 EAT inside the process) ─────────────
-// Remove this line if you use an external cron job instead
 if (process.env.ENABLE_BACKUP_SCHEDULER !== "false") {
   require("./scripts/backupScheduler")
 }
 
 const app = express()
 
-// ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://app.cratersda.co.ke",
-    "https://cratersda.co.ke",
-  ],
-  credentials: true,
-}))
+// ── Flexible CORS (Option 2: Regex Pattern Matcher) ──────────────────────────
+const allowedOriginsRegex = [
+  /localhost:3000$/,
+  /\.sdacrater\.org$/,
+  /\.cratersda\.co\.ke$/,
+  /cratersda\.co\.ke$/
+];
 
-// Raw body for M-Pesa webhooks (must come before express.json)
+app.use(cors({
+  origin: function (origin, callback) {
+    // 1. Allow requests with no origin (like mobile apps, Postman, or Cron jobs)
+    if (!origin) return callback(null, true);
+
+    // 2. Check if origin matches any of our allowed patterns
+    const isAllowed = allowedOriginsRegex.some((regex) => regex.test(origin));
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`🚫 CORS Blocked: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
+// ── M-Pesa Raw Body Handling ─────────────────────────────────────────────────
 const mpesaRawBody = express.raw({ type: "*/*" })
 const parseMpesaBody = (req, res, next) => {
-  if (Buffer.isBuffer(req.body)) req.body = JSON.parse(req.body.toString())
-  next()
+  try {
+    if (Buffer.isBuffer(req.body)) req.body = JSON.parse(req.body.toString())
+    next()
+  } catch (err) {
+    res.status(400).send("Invalid JSON body")
+  }
 }
 app.use("/api/mpesa/stk-callback",     mpesaRawBody, parseMpesaBody)
 app.use("/api/mpesa/c2b-confirmation", mpesaRawBody, parseMpesaBody)
@@ -73,115 +83,54 @@ app.use("/api/mpesa/c2b-validation",   mpesaRawBody, parseMpesaBody)
 app.use(express.json())
 
 // ── API Routes ────────────────────────────────────────────────────────────────
-// Phase 1
-app.use("/api/auth",            authRoutes)
-app.use("/api/members",         membersRoutes)
-app.use("/api/groups",          groupsRoutes)
-app.use("/api/contributions",   contributionsRoutes)
-app.use("/api/payments",        paymentsRoutes)
-app.use("/api/claims",          claimsRoutes)
-app.use("/api/loans",           loansRoutes)
-app.use("/api/loan-repayments", loanRepaymentsRoutes)
-app.use("/api/notifications",   notificationsRoutes)
-app.use("/api/announcements",   announcementsRoutes)
-app.use("/api/uploads",         uploadsRoutes)
-
-// Phase 2
-app.use("/api/dashboard",            dashboardRoutes)
-app.use("/api/mpesa",                mpesaRoutes)
-app.use("/api/dependents",           require("./routes/dependents"))
+app.use("/api/auth",                authRoutes)
+app.use("/api/members",             membersRoutes)
+app.use("/api/groups",              groupsRoutes)
+app.use("/api/contributions",       contributionsRoutes)
+app.use("/api/payments",            paymentsRoutes)
+app.use("/api/claims",              claimsRoutes)
+app.use("/api/loans",               loansRoutes)
+app.use("/api/loan-repayments",     loanRepaymentsRoutes)
+app.use("/api/notifications",       notificationsRoutes)
+app.use("/api/announcements",       announcementsRoutes)
+app.use("/api/uploads",             uploadsRoutes)
+app.use("/api/dashboard",           dashboardRoutes)
+app.use("/api/mpesa",               mpesaRoutes)
+app.use("/api/dependents",          require("./routes/dependents"))
 app.use("/api/beneficiary-requests", beneficiaryRequestsRoutes)
+app.use("/api/reports",             reportsRoutes)
+app.use("/api/audit-logs",          auditLogsRoutes)
 
-// Phase 3
-app.use("/api/reports",     reportsRoutes)
-
-// Phase 4
-app.use("/api/audit-logs",  auditLogsRoutes)
-
-// ── Health check (now includes Redis + DB status) ─────────────────────────────
+// ── Health Check ──────────────────────────────────────────────────────────────
 app.get("/health", async (req, res) => {
   const checks = { db: "unknown", redis: "unknown" }
-
-  // Check DB
+  try { await prisma.$queryRaw`SELECT 1`; checks.db = "ok" } catch (e) { checks.db = "error" }
   try {
-    await prisma.$queryRaw`SELECT 1`
-    checks.db = "ok"
-  } catch {
-    checks.db = "error"
-  }
+    const redis = getRedis();
+    if (redis) { await redis.ping(); checks.redis = "ok" } 
+    else { checks.redis = "disabled" }
+  } catch (e) { checks.redis = "error" }
 
-  // Check Redis
-  try {
-    const redis = getRedis()
-    if (redis) {
-      await redis.ping()
-      checks.redis = "ok"
-    } else {
-      checks.redis = "disabled"
-    }
-  } catch {
-    checks.redis = "error"
-  }
-
-  const healthy   = checks.db === "ok"
-  const statusCode = healthy ? 200 : 503
-
-  res.status(statusCode).json({
-    status:    healthy ? "ok" : "degraded",
-    timestamp: new Date().toISOString(),
-    phase:     "4",
-    checks,
-    modules: [
-      "auth", "members", "groups", "contributions", "payments",
-      "claims", "loans", "notifications", "announcements",
-      "dashboard", "mpesa", "reports", "audit-logs", "beneficiary-requests"
-    ],
-  })
+  const healthy = checks.db === "ok"
+  res.status(healthy ? 200 : 503).json({ status: healthy ? "ok" : "degraded", checks })
 })
 
-// ── 404 ───────────────────────────────────────────────────────────────────────
-app.use((req, res) => {
-  res.status(404).json({ message: `Route ${req.method} ${req.url} not found` })
-})
-
-// ── Global error handler ──────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error("❌ Unhandled error:", err.message)
-  res.status(500).json({ error: "Internal server error" })
-})
-
-// ── Start ─────────────────────────────────────────────────────────────────────
+// ── Server Start ──────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000
-const server = app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`)
-  console.log(`📋 Health: http://localhost:${PORT}/health`)
-  console.log(`🌍 Phase 5 active - DB Optimization + Automatic Backup + Caching`)
-
-  // Warm Redis connection at startup
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server live on port ${PORT}`)
   const redis = getRedis()
   if (redis) redis.ping().catch(() => {})
 })
 
-// ── Graceful shutdown ─────────────────────────────────────────────────────────
+// ── Graceful Shutdown ─────────────────────────────────────────────────────────
 const shutdown = async (signal) => {
-  console.log(`\n${signal} received — shutting down gracefully...`)
-
   server.close(async () => {
-    try {
-      await prisma.$disconnect()
-      console.log("✅ Prisma disconnected")
-
-      const redis = getRedis()
-      if (redis) {
-        await redis.quit()
-        console.log("✅ Redis disconnected")
-      }
-    } catch (err) {
-      console.error("⚠️ Shutdown error:", err.message)
-    }
+    await prisma.$disconnect()
+    const redis = getRedis()
+    if (redis) await redis.quit()
     process.exit(0)
   })
 }
-
 process.on("SIGTERM", () => shutdown("SIGTERM"))
 process.on("SIGINT",  () => shutdown("SIGINT"))
