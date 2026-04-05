@@ -479,9 +479,10 @@ export default function AdminReportsPage() {
               <div style={{ fontWeight: 600, fontSize: 15, color: '#0f2040', marginBottom: 16 }}>Welfare standing — {year}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
                 {[
-                  { label: 'Good Standing', value: d.members.standing.good,      ...SC.GOOD      },
-                  { label: 'Warning',       value: d.members.standing.warning,    ...SC.WARNING   },
-                  { label: 'Suspended',     value: d.members.standing.suspended,  ...SC.SUSPENDED },
+                  // Put the spread FIRST, then the specific label SECOND to overwrite it
+{ ...SC.GOOD,      label: 'Good Standing', value: d.members.standing.good    },
+{ ...SC.WARNING,   label: 'Warning',       value: d.members.standing.warning },
+{ ...SC.SUSPENDED, label: 'Suspended',     value: d.members.standing.suspended },
                 ].map(s => (
                   <div key={s.label} style={{ background: s.bg, borderRadius: 12, padding: '16px 20px', border: `1px solid ${s.color}30` }}>
                     <div style={{ fontSize: 11, color: s.color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{s.label}</div>
