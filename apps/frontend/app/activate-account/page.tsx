@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import axios from 'axios'
@@ -7,7 +7,7 @@ import { useAuth } from '../../lib/auth'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
-export default function ActivateAccountPage() {
+function ActivateAccountContent() {
   const searchParams           = useSearchParams()
   const { signIn }             = useAuth()
   const token                  = searchParams.get('token')
@@ -38,16 +38,10 @@ export default function ActivateAccountPage() {
     setSub(true)
     try {
       const { data } = await axios.post(`${API_URL}/api/auth/activate`, { token, password })
-
-      // ✅ Account is now active — show success then auto-login
       setStep('success')
       setTimeout(() => {
-        // signIn saves the token + user to localStorage and redirects automatically:
-        // → MEMBER goes to /dashboard
-        // → SUPER_ADMIN / TREASURER / SECRETARY goes to /admin
         signIn(data.token, data.user)
       }, 1800)
-
     } catch (err: any) {
       setErr(err.response?.data?.message || 'Activation failed. The link may have expired.')
     } finally {
@@ -220,5 +214,18 @@ export default function ActivateAccountPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ActivateAccountPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'linear-gradient(160deg,#091529 0%,#1e3a6e 100%)' }}>
+        <div style={{ width:40, height:40, border:'3px solid rgba(255,255,255,0.15)', borderTopColor:'#e6b020', borderRadius:'50%', animation:'spin 0.8s linear infinite' }}/>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <ActivateAccountContent />
+    </Suspense>
   )
 }
