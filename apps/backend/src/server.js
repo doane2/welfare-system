@@ -7,7 +7,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-require("dotenv").config()
+require("dotenv").config({ override: false })
 
 const express = require("express")
 const cors    = require("cors")
