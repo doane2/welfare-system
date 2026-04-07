@@ -1,13 +1,4 @@
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * Final Production server.js
- * • Pattern-matching CORS for infinite subdomains.
- * • Railway '0.0.0.0' binding.
- * • Redis + Prisma Health Tracking.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
-if (process.env.NODE_ENV !== 'production') { require("dotenv").config() }
+require("dotenv").config();
 
 const express = require("express")
 const cors    = require("cors")
