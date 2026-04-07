@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "build": "npx prisma generate",
+    "build": "prisma generate --schema=./prisma/schema.prisma",
     "reminder": "node src/jobs/contributionReminder.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/server.js",
