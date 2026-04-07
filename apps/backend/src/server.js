@@ -9,14 +9,6 @@
 
 if (process.env.NODE_ENV !== 'production') { require("dotenv").config() }
 
-// TEMPORARY DEBUG — remove after fixing
-console.log('=== ENV DEBUG ===')
-console.log('NODE_ENV:', process.env.NODE_ENV)
-console.log('HAS_DB:', !!process.env.DATABASE_URL)
-console.log('HAS_REDIS:', !!process.env.REDIS_URL)
-console.log('HAS_JWT:', !!process.env.JWT_SECRET)
-console.log('=================')
-
 const express = require("express")
 const cors    = require("cors")
 
