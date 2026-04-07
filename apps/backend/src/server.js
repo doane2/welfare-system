@@ -1,5 +1,13 @@
 require("dotenv").config();
 
+// ── ENV DEBUG ────────────────────────────────────────────────────────────────
+console.log("=== ENV DEBUG START ===");
+console.log("DATABASE_URL:", process.env.DATABASE_URL ? "SET" : "MISSING");
+console.log("REDIS_URL:", process.env.REDIS_URL ? "SET" : "MISSING");
+console.log("EMAIL_USER:", process.env.EMAIL_USER ? "SET" : "MISSING");
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("=== ENV DEBUG END ===");
+
 const express = require("express")
 const cors    = require("cors")
 
@@ -15,11 +23,11 @@ const loanRepaymentsRoutes  = require("./routes/loanRepayments")
 const notificationsRoutes   = require("./routes/notifications")
 const announcementsRoutes   = require("./routes/announcements")
 const uploadsRoutes         = require("./routes/uploads")
-const dashboardRoutes           = require("./routes/dashboard")
-const mpesaRoutes               = require("./routes/mpesa")
+const dashboardRoutes       = require("./routes/dashboard")
+const mpesaRoutes           = require("./routes/mpesa")
 const beneficiaryRequestsRoutes = require("./routes/beneficiaryRequests")
-const reportsRoutes   = require("./routes/reports")
-const auditLogsRoutes = require("./routes/auditLogs")
+const reportsRoutes         = require("./routes/reports")
+const auditLogsRoutes       = require("./routes/auditLogs")
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
 const prisma = require("./lib/prisma")
@@ -31,7 +39,7 @@ if (process.env.ENABLE_BACKUP_SCHEDULER !== "false") {
 
 const app = express()
 
-// ── Flexible CORS (Option 2: Regex Pattern Matcher) ──────────────────────────
+// ── Flexible CORS ───────────────────────────────────────────────────────────
 const allowedOriginsRegex = [
   /localhost:3000$/,
   /\.sdacrater\.org$/,
@@ -43,10 +51,8 @@ const allowedOriginsRegex = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // 1. Allow requests with no origin (like mobile apps, Postman, or Cron jobs)
     if (!origin) return callback(null, true)
 
-    // 2. Check if origin matches any of our allowed patterns
     const isAllowed = allowedOriginsRegex.some((regex) => regex.test(origin))
 
     if (isAllowed) {
@@ -97,12 +103,27 @@ app.use("/api/audit-logs",          auditLogsRoutes)
 // ── Health Check ──────────────────────────────────────────────────────────────
 app.get("/health", async (req, res) => {
   const checks = { db: "unknown", redis: "unknown" }
-  try { await prisma.$queryRaw`SELECT 1`; checks.db = "ok" } catch (e) { checks.db = "error" }
+
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    checks.db = "ok"
+  } catch (e) {
+    console.error("DB Health Error:", e.message)
+    checks.db = "error"
+  }
+
   try {
     const redis = getRedis()
-    if (redis) { await redis.ping(); checks.redis = "ok" }
-    else { checks.redis = "disabled" }
-  } catch (e) { checks.redis = "error" }
+    if (redis) {
+      await redis.ping()
+      checks.redis = "ok"
+    } else {
+      checks.redis = "disabled"
+    }
+  } catch (e) {
+    console.error("Redis Health Error:", e.message)
+    checks.redis = "error"
+  }
 
   const healthy = checks.db === "ok" || checks.db === "unknown"
   res.status(200).json({ status: healthy ? "ok" : "degraded", checks })
@@ -118,6 +139,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────
 const shutdown = async (signal) => {
+  console.log(`⚠️ Received ${signal}, shutting down...`)
   server.close(async () => {
     await prisma.$disconnect()
     const redis = getRedis()
@@ -125,5 +147,6 @@ const shutdown = async (signal) => {
     process.exit(0)
   })
 }
+
 process.on("SIGTERM", () => shutdown("SIGTERM"))
 process.on("SIGINT",  () => shutdown("SIGINT"))
