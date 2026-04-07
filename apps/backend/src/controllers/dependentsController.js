@@ -1,6 +1,6 @@
 const prisma = require("../lib/prisma")
 const nodemailer = require("nodemailer")
-require("dotenv").config()
+if (process.env.NODE_ENV !== 'production') { require("dotenv").config() }
 
 // ── Validation rules per dependent type ──────────────────
 const DEPENDENT_RULES = {

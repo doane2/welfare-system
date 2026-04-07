@@ -15,7 +15,7 @@
  *   "reminder": "node src/jobs/contributionReminder.js"
  */
 
-require("dotenv").config()
+if (process.env.NODE_ENV !== 'production') { require("dotenv").config() }
 const prisma = require("../lib/prisma")
 const { sendContributionReminderEmail } = require("../services/emailService")
 const { sendContributionReminderSMS }   = require("../services/smsService")

@@ -1,4 +1,4 @@
-require("dotenv").config()
+if (process.env.NODE_ENV !== 'production') { require("dotenv").config() }
 const prisma = require("../src/lib/prisma")
 const bcrypt = require("bcrypt")
 

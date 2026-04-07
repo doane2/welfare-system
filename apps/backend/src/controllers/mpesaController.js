@@ -1,6 +1,6 @@
 const prisma  = require("../lib/prisma")
 const axios   = require("axios")
-require("dotenv").config()
+if (process.env.NODE_ENV !== 'production') { require("dotenv").config() }
 
 const {
   sendPaymentApprovedEmail,
