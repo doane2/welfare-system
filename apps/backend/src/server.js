@@ -8,36 +8,18 @@ console.log("EMAIL_USER:", process.env.EMAIL_USER ? "SET" : "MISSING");
 console.log("NODE_ENV:", process.env.NODE_ENV);
 console.log("=== ENV DEBUG END ===");
 
-const express = require("express")
-const cors    = require("cors")
-
-// ── Routes ──────────────────────────────────────────────────────────────────
-const authRoutes            = require("./routes/auth")
-const membersRoutes         = require("./routes/members")
-const groupsRoutes          = require("./routes/groups")
-const contributionsRoutes   = require("./routes/contributions")
-const paymentsRoutes        = require("./routes/payments")
-const claimsRoutes          = require("./routes/claims")
-const loansRoutes           = require("./routes/loans")
-const loanRepaymentsRoutes  = require("./routes/loanRepayments")
-const notificationsRoutes   = require("./routes/notifications")
-const announcementsRoutes   = require("./routes/announcements")
-const uploadsRoutes         = require("./routes/uploads")
-const dashboardRoutes       = require("./routes/dashboard")
-const mpesaRoutes           = require("./routes/mpesa")
-const beneficiaryRequestsRoutes = require("./routes/beneficiaryRequests")
-const reportsRoutes         = require("./routes/reports")
-const auditLogsRoutes       = require("./routes/auditLogs")
+const express = require("express");
+const cors = require("cors");
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
-const prisma = require("./lib/prisma")
-const { getClient: getRedis } = require("./lib/redis")
+const prisma = require("./lib/prisma");
+const { getClient: getRedis } = require("./lib/redis");
 
 if (process.env.ENABLE_BACKUP_SCHEDULER !== "false") {
-  require("./scripts/backupScheduler")
+  require("./scripts/backupScheduler");
 }
 
-const app = express()
+const app = express();
 
 // ── Flexible CORS ───────────────────────────────────────────────────────────
 const allowedOriginsRegex = [
@@ -47,106 +29,128 @@ const allowedOriginsRegex = [
   /cratersda\.co\.ke$/,
   /\.vercel\.app$/,
   /\.up\.railway\.app$/,
-]
+];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true)
-
-    const isAllowed = allowedOriginsRegex.some((regex) => regex.test(origin))
-
+    if (!origin) return callback(null, true);
+    const isAllowed = allowedOriginsRegex.some((regex) => regex.test(origin));
     if (isAllowed) {
-      callback(null, true)
+      callback(null, true);
     } else {
-      console.warn(`🚫 CORS Blocked: ${origin}`)
-      callback(new Error('Not allowed by CORS'))
+      console.warn(`🚫 CORS Blocked: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-}))
+}));
 
 // ── M-Pesa Raw Body Handling ─────────────────────────────────────────────────
-const mpesaRawBody = express.raw({ type: "*/*" })
+const mpesaRawBody = express.raw({ type: "*/*" });
 const parseMpesaBody = (req, res, next) => {
   try {
-    if (Buffer.isBuffer(req.body)) req.body = JSON.parse(req.body.toString())
-    next()
+    if (Buffer.isBuffer(req.body)) req.body = JSON.parse(req.body.toString());
+    next();
   } catch (err) {
-    res.status(400).send("Invalid JSON body")
+    res.status(400).send("Invalid JSON body");
   }
-}
-app.use("/api/mpesa/stk-callback",     mpesaRawBody, parseMpesaBody)
-app.use("/api/mpesa/c2b-confirmation", mpesaRawBody, parseMpesaBody)
-app.use("/api/mpesa/c2b-validation",   mpesaRawBody, parseMpesaBody)
+};
+app.use("/api/mpesa/stk-callback", mpesaRawBody, parseMpesaBody);
+app.use("/api/mpesa/c2b-confirmation", mpesaRawBody, parseMpesaBody);
+app.use("/api/mpesa/c2b-validation", mpesaRawBody, parseMpesaBody);
 
-app.use(express.json())
+app.use(express.json());
 
-// ── API Routes ────────────────────────────────────────────────────────────────
-app.use("/api/auth",                authRoutes)
-app.use("/api/members",             membersRoutes)
-app.use("/api/groups",              groupsRoutes)
-app.use("/api/contributions",       contributionsRoutes)
-app.use("/api/payments",            paymentsRoutes)
-app.use("/api/claims",              claimsRoutes)
-app.use("/api/loans",               loansRoutes)
-app.use("/api/loan-repayments",     loanRepaymentsRoutes)
-app.use("/api/notifications",       notificationsRoutes)
-app.use("/api/announcements",       announcementsRoutes)
-app.use("/api/uploads",             uploadsRoutes)
-app.use("/api/dashboard",           dashboardRoutes)
-app.use("/api/mpesa",               mpesaRoutes)
-app.use("/api/dependents",          require("./routes/dependents"))
-app.use("/api/beneficiary-requests", beneficiaryRequestsRoutes)
-app.use("/api/reports",             reportsRoutes)
-app.use("/api/audit-logs",          auditLogsRoutes)
+// ── Root Route (For Railway Healthchecks) ─────────────────────────────────────
+app.get("/", (req, res) => res.send("SDA Welfare API Online"));
 
-// ── Health Check ──────────────────────────────────────────────────────────────
+// ── Routes ──────────────────────────────────────────────────────────────────
+const authRoutes = require("./routes/auth");
+const membersRoutes = require("./routes/members");
+const groupsRoutes = require("./routes/groups");
+const contributionsRoutes = require("./routes/contributions");
+const paymentsRoutes = require("./routes/payments");
+const claimsRoutes = require("./routes/claims");
+const loansRoutes = require("./routes/loans");
+const loanRepaymentsRoutes = require("./routes/loanRepayments");
+const notificationsRoutes = require("./routes/notifications");
+const announcementsRoutes = require("./routes/announcements");
+const uploadsRoutes = require("./routes/uploads");
+const dashboardRoutes = require("./routes/dashboard");
+const mpesaRoutes = require("./routes/mpesa");
+const beneficiaryRequestsRoutes = require("./routes/beneficiaryRequests");
+const reportsRoutes = require("./routes/reports");
+const auditLogsRoutes = require("./routes/auditLogs");
+
+// ── API Route Mapping ────────────────────────────────────────────────────────
+app.use("/api/auth", authRoutes);
+app.use("/api/members", membersRoutes);
+app.use("/api/groups", groupsRoutes);
+app.use("/api/contributions", contributionsRoutes);
+app.use("/api/payments", paymentsRoutes);
+app.use("/api/claims", claimsRoutes);
+app.use("/api/loans", loansRoutes);
+app.use("/api/loan-repayments", loanRepaymentsRoutes);
+app.use("/api/notifications", notificationsRoutes);
+app.use("/api/announcements", announcementsRoutes);
+app.use("/api/uploads", uploadsRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/mpesa", mpesaRoutes);
+app.use("/api/dependents", require("./routes/dependents"));
+app.use("/api/beneficiary-requests", beneficiaryRequestsRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/audit-logs", auditLogsRoutes);
+
+// ── Detailed Health Check ─────────────────────────────────────────────────────
 app.get("/health", async (req, res) => {
-  const checks = { db: "unknown", redis: "unknown" }
+  const checks = { db: "unknown", redis: "unknown" };
 
   try {
-    await prisma.$queryRaw`SELECT 1`
-    checks.db = "ok"
+    await prisma.$queryRaw`SELECT 1`;
+    checks.db = "ok";
   } catch (e) {
-    console.error("DB Health Error:", e.message)
-    checks.db = "error"
+    console.error("DB Health Error:", e.message);
+    checks.db = "error";
   }
 
   try {
-    const redis = getRedis()
+    const redis = getRedis();
     if (redis) {
-      await redis.ping()
-      checks.redis = "ok"
+      await redis.ping();
+      checks.redis = "ok";
     } else {
-      checks.redis = "disabled"
+      checks.redis = "disabled";
     }
   } catch (e) {
-    console.error("Redis Health Error:", e.message)
-    checks.redis = "error"
+    console.error("Redis Health Error:", e.message);
+    checks.redis = "error";
   }
 
-  const healthy = checks.db === "ok" || checks.db === "unknown"
-  res.status(200).json({ status: healthy ? "ok" : "degraded", checks })
-})
+  const healthy = checks.db === "ok";
+  res.status(healthy ? 200 : 503).json({ 
+    status: healthy ? "ok" : "degraded", 
+    checks 
+  });
+});
 
 // ── Server Start ──────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server live on port ${PORT}`)
-  const redis = getRedis()
-  if (redis) redis.ping().catch(() => {})
-})
+  console.log(`✅ Server live on port ${PORT}`);
+  const redis = getRedis();
+  if (redis) redis.ping().catch(() => {});
+});
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────
 const shutdown = async (signal) => {
-  console.log(`⚠️ Received ${signal}, shutting down...`)
+  console.log(`⚠️ Received ${signal}, shutting down...`);
   server.close(async () => {
-    await prisma.$disconnect()
-    const redis = getRedis()
-    if (redis) await redis.quit()
-    process.exit(0)
-  })
-}
+    await prisma.$disconnect();
+    const redis = getRedis();
+    if (redis) await redis.quit();
+    process.exit(0);
+  });
+};
 
-process.on("SIGTERM", () => shutdown("SIGTERM"))
-process.on("SIGINT",  () => shutdown("SIGINT"))
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

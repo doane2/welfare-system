@@ -6,7 +6,8 @@
   },
   "deploy": {
     "startCommand": "npx prisma migrate deploy --schema=apps/backend/prisma/schema.prisma && node apps/backend/src/server.js",
-    "healthcheckPath": "/",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE"
   }
 }
