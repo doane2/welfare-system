@@ -11,9 +11,7 @@ dist/
 
 # Environment variables (CRITICAL)
 .env
-.env.local
-.env.production
-.env.development
+.env.*
 *.env
 
 # Debug logs

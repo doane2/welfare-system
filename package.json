@@ -18,8 +18,7 @@
     "clean": "rmdir /s /q node_modules & rmdir /s /q apps\\frontend\\node_modules & rmdir /s /q apps\\backend\\node_modules & rmdir /s /q apps\\frontend\\.next"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
-    "prisma": "^6.19.3"
+    "concurrently": "^9.1.2"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1017.0",

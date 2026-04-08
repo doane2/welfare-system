@@ -1,12 +1,28 @@
 require("dotenv").config();
 
-// ── ENV DEBUG ────────────────────────────────────────────────────────────────
+// ── ENV DEBUG ─────────────────────────────────────────────────────────────────
 console.log("=== ENV DEBUG START ===");
 console.log("DATABASE_URL:", process.env.DATABASE_URL ? "SET" : "MISSING");
 console.log("REDIS_URL:", process.env.REDIS_URL ? "SET" : "MISSING");
-console.log("EMAIL_USER:", process.env.EMAIL_USER ? "SET" : "MISSING");
 console.log("NODE_ENV:", process.env.NODE_ENV);
 console.log("=== ENV DEBUG END ===");
+
+// ── Run migrations on startup (production only) ───────────────────────────────
+if (process.env.NODE_ENV === "production") {
+  const { execSync } = require("child_process");
+  try {
+    console.log("🔄 Running database migrations...");
+    execSync("npx prisma migrate deploy --schema=./prisma/schema.prisma", {
+  stdio: "inherit",
+  cwd: require("path").join(__dirname, ".."),  // = apps/backend/
+  env: process.env,
+});
+    console.log("✅ Migrations complete");
+  } catch (err) {
+    console.error("❌ Migration failed:", err.message);
+    // Don't crash — server may still work if schema is already up to date
+  }
+}
 
 const express = require("express");
 const cors = require("cors");
