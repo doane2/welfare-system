@@ -1,21 +1,11 @@
-// prisma/schema.prisma  (DB-optimized)
-// ─────────────────────────────────────────────────────────────────────────────
-// Changes vs original:
-//   • Added composite indexes on high-traffic query patterns
-//   • Added covering indexes to avoid table-lookups on list queries
-//   • Annotated every new index with WHY it was added
-//
-// After editing run:
-//   npx prisma migrate dev --name add_performance_indexes
-// ─────────────────────────────────────────────────────────────────────────────
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
-   url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
