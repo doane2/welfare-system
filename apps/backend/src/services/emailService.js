@@ -1,22 +1,18 @@
-const nodemailer = require("nodemailer")
-if (process.env.NODE_ENV !== 'production') { require("dotenv").config() }
+const { Resend } = require("resend")
+if (process.env.NODE_ENV !== "production") { require("dotenv").config() }
 
-// ─── Transporter Setup ────────────────────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  host:    "smtp.gmail.com",
-  port:    587,
-  secure:  false,
-  family:  4,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-})
+// ─── Resend Client Setup ──────────────────────────────────────────────────────
+// Free tier: 3,000 emails/month, 100/day
+// Dashboard: https://resend.com/emails
+// To use a custom sender domain later:
+//   1. Resend dashboard → Domains → Add Domain → add DNS records
+//   2. Change FROM_ADDRESS below to e.g. "noreply@cratersda.co.ke"
+// ─────────────────────────────────────────────────────────────────────────────
+const resend = new Resend(process.env.RESEND_API_KEY)
 
-transporter.verify((error) => {
-  if (error) console.error("❌ Email transporter verification failed:", error.message)
-  else       console.log("✅ Email server is ready to send messages")
-})
+// While on Resend free tier without a verified domain, use this sender.
+// Once you verify cratersda.co.ke in Resend, change to: "Crater SDA Welfare <noreply@cratersda.co.ke>"
+const FROM_ADDRESS = "Crater SDA Welfare Society <onboarding@resend.dev>"
 
 // ─── Base Email Sender ────────────────────────────────────────────────────────
 const sendEmail = async ({ to, subject, text, html }) => {
@@ -24,13 +20,24 @@ const sendEmail = async ({ to, subject, text, html }) => {
     console.error("❌ Missing email fields — email not sent")
     return
   }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("⚠️  RESEND_API_KEY not set — email not sent")
+    return
+  }
+
   try {
-    const info = await transporter.sendMail({
-      from: `"Crater SDA Welfare Society" <${process.env.EMAIL_USER}>`,
-      to, subject, text,
+    const { data, error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      text,
       ...(html && { html }),
     })
-    console.log(`✅ Email sent to ${to} | Subject: "${subject}" | ID: ${info.messageId}`)
+
+    if (error) throw new Error(error.message)
+
+    console.log(`✅ Email sent to ${to} | Subject: "${subject}" | ID: ${data.id}`)
   } catch (error) {
     console.error(`❌ Failed to send email to ${to}:`, error.message)
     throw error
@@ -458,13 +465,10 @@ const sendBeneficiaryRequestProcessedSMS = async ({ phone, fullName, requestType
   const msg = approved
     ? `Crater Welfare: Your beneficiary ${requestType.toLowerCase()} request has been approved. Log in to view your updated beneficiaries.`
     : `Crater Welfare: Your beneficiary ${requestType.toLowerCase()} request was not approved. Log in for details.`
-  // TODO: replace with actual SMS client call when ready
   console.log(`📱 [SMS stub] To: ${phone} | Message: ${msg}`)
 }
 
 // ─── 16. Password Reset ───────────────────────────────────────────────────────
-// Triggered by super admin on behalf of a member who has forgotten their password.
-// The reset link is valid for 24 hours and is single-use (token cleared after use).
 const sendPasswordResetEmail = async ({ email, fullName, token }) => {
   if (!email || !token) { console.error("❌ Missing email or reset token"); return }
   const resetLink = `${process.env.APP_URL}/reset-password?token=${token}`
@@ -526,8 +530,6 @@ Crater SDA Welfare Society Team
 }
 
 // ─── 17. Account Status Change ────────────────────────────────────────────────
-// Notifies the member whenever their account status is changed by the admin:
-//   status: "ACTIVE" | "INACTIVE" | "ANONYMISED"
 const sendAccountStatusEmail = async ({ email, fullName, status }) => {
   if (!email) return
 
@@ -614,7 +616,6 @@ module.exports = {
   sendBeneficiaryRequestReceivedEmail,
   sendBeneficiaryRequestProcessedEmail,
   sendBeneficiaryRequestProcessedSMS,
-  // ── NEW ──
   sendPasswordResetEmail,
   sendAccountStatusEmail,
 }
