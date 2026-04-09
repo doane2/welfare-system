@@ -9,32 +9,23 @@ console.log("REDIS_URL:", process.env.REDIS_URL ? "SET" : "MISSING");
 console.log("NODE_ENV:", process.env.NODE_ENV);
 console.log("=== ENV DEBUG END ===");
 
-// ── Run migrations on startup (production only) ───────────────────────────────
-if (process.env.NODE_ENV === "production") {
-  const { execSync } = require("child_process");
-  try {
-    console.log("🔄 Running database migrations...");
-    execSync("npx prisma migrate deploy --schema=./prisma/schema.prisma", {
-  stdio: "inherit",
-  cwd: require("path").join(__dirname, ".."),  // = apps/backend/
-  env: process.env,
-});
-    console.log("✅ Migrations complete");
-  } catch (err) {
-    console.error("❌ Migration failed:", err.message);
-    // Don't crash — server may still work if schema is already up to date
-  }
-}
+// ── MIGRATIONS NOTE ──────────────────────────────────────────────────────────
+// Manual migrations are handled via 'npx prisma db push' locally to 
+// prevent startup timeouts on Render's free tier.
 
 const express = require("express");
 const cors = require("cors");
-
-// ── Infrastructure ────────────────────────────────────────────────────────────
 const prisma = require("./lib/prisma");
 const { getClient: getRedis } = require("./lib/redis");
 
+// ── Infrastructure & Scripts ──────────────────────────────────────────────────
 if (process.env.ENABLE_BACKUP_SCHEDULER !== "false") {
-  require("./scripts/backupScheduler");
+  try {
+    require("./scripts/backupScheduler");
+    console.log("✅ Backup scheduler registered");
+  } catch (err) {
+    console.error("⚠️ Backup scheduler failed to load:", err.message);
+  }
 }
 
 const app = express();
@@ -46,7 +37,7 @@ const allowedOriginsRegex = [
   /\.cratersda\.co\.ke$/,
   /cratersda\.co\.ke$/,
   /\.vercel\.app$/,
-  /\.up\.railway\.app$/,
+  /\.onrender\.com$/, // Added to allow Render internal communication
 ];
 
 app.use(cors({
@@ -73,51 +64,34 @@ const parseMpesaBody = (req, res, next) => {
     res.status(400).send("Invalid JSON body");
   }
 };
+
 app.use("/api/mpesa/stk-callback", mpesaRawBody, parseMpesaBody);
 app.use("/api/mpesa/c2b-confirmation", mpesaRawBody, parseMpesaBody);
 app.use("/api/mpesa/c2b-validation", mpesaRawBody, parseMpesaBody);
 
 app.use(express.json());
 
-// ── Root Route (For Railway Healthchecks) ─────────────────────────────────────
+// ── Root Route ──────────────────────────────────────────────────────────────
 app.get("/", (req, res) => res.send("SDA Welfare API Online"));
 
-// ── Routes ──────────────────────────────────────────────────────────────────
-const authRoutes = require("./routes/auth");
-const membersRoutes = require("./routes/members");
-const groupsRoutes = require("./routes/groups");
-const contributionsRoutes = require("./routes/contributions");
-const paymentsRoutes = require("./routes/payments");
-const claimsRoutes = require("./routes/claims");
-const loansRoutes = require("./routes/loans");
-const loanRepaymentsRoutes = require("./routes/loanRepayments");
-const notificationsRoutes = require("./routes/notifications");
-const announcementsRoutes = require("./routes/announcements");
-const uploadsRoutes = require("./routes/uploads");
-const dashboardRoutes = require("./routes/dashboard");
-const mpesaRoutes = require("./routes/mpesa");
-const beneficiaryRequestsRoutes = require("./routes/beneficiaryRequests");
-const reportsRoutes = require("./routes/reports");
-const auditLogsRoutes = require("./routes/auditLogs");
-
 // ── API Route Mapping ────────────────────────────────────────────────────────
-app.use("/api/auth", authRoutes);
-app.use("/api/members", membersRoutes);
-app.use("/api/groups", groupsRoutes);
-app.use("/api/contributions", contributionsRoutes);
-app.use("/api/payments", paymentsRoutes);
-app.use("/api/claims", claimsRoutes);
-app.use("/api/loans", loansRoutes);
-app.use("/api/loan-repayments", loanRepaymentsRoutes);
-app.use("/api/notifications", notificationsRoutes);
-app.use("/api/announcements", announcementsRoutes);
-app.use("/api/uploads", uploadsRoutes);
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/mpesa", mpesaRoutes);
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/members", require("./routes/members"));
+app.use("/api/groups", require("./routes/groups"));
+app.use("/api/contributions", require("./routes/contributions"));
+app.use("/api/payments", require("./routes/payments"));
+app.use("/api/claims", require("./routes/claims"));
+app.use("/api/loans", require("./routes/loans"));
+app.use("/api/loan-repayments", require("./routes/loanRepayments"));
+app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/announcements", require("./routes/announcements"));
+app.use("/api/uploads", require("./routes/uploads"));
+app.use("/api/dashboard", require("./routes/dashboard"));
+app.use("/api/mpesa", require("./routes/mpesa"));
 app.use("/api/dependents", require("./routes/dependents"));
-app.use("/api/beneficiary-requests", beneficiaryRequestsRoutes);
-app.use("/api/reports", reportsRoutes);
-app.use("/api/audit-logs", auditLogsRoutes);
+app.use("/api/beneficiary-requests", require("./routes/beneficiaryRequests"));
+app.use("/api/reports", require("./routes/reports"));
+app.use("/api/audit-logs", require("./routes/auditLogs"));
 
 // ── Detailed Health Check ─────────────────────────────────────────────────────
 app.get("/health", async (req, res) => {
@@ -156,7 +130,11 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server live on port ${PORT}`);
   const redis = getRedis();
-  if (redis) redis.ping().catch(() => {});
+  if (redis) {
+    redis.ping()
+      .then(() => console.log("✅ Redis connected"))
+      .catch((err) => console.error("❌ Redis connection failed:", err.message));
+  }
 });
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────
