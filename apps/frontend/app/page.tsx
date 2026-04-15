@@ -2,6 +2,24 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
+import {
+  HeartPulse,
+  Bird,
+  GraduationCap,
+  Handshake,
+  ShieldCheck,
+  Zap,
+  Smartphone,
+  UserPlus,
+  KeyRound,
+  CreditCard,
+  Gift,
+  Bell,
+  CheckCircle2,
+  ChevronDown,
+  ArrowRight,
+  Download,
+} from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'About',        href: '#about'    },
@@ -11,16 +29,35 @@ const NAV_LINKS = [
 ]
 
 const SERVICES = [
-  { icon: '🏥', title: 'Medical Claims',    desc: 'Financial support for medical bills, hospitalisation and treatment costs.'             },
-  { icon: '🕊️', title: 'Death Benefits',    desc: 'Compassionate support for bereaved families during their most difficult time.'         },
-  { icon: '🎓', title: 'Education Support', desc: "Helping members' children access quality education through bursaries and grants."       },
+  {
+    Icon: HeartPulse,
+    title: 'Medical Claims',
+    desc: 'Financial support for medical bills, hospitalisation and treatment costs.',
+  },
+  {
+    Icon: Bird,
+    title: 'Death Benefits',
+    desc: 'Compassionate support for bereaved families during their most difficult time.',
+  },
+  {
+    Icon: GraduationCap,
+    title: 'Education Support',
+    desc: "Helping members' children access quality education through bursaries and grants.",
+  },
 ]
 
 const STEPS = [
-  { num: '01', title: 'Register',   desc: 'Your admin creates your account and sends you an activation link.'  },
-  { num: '02', title: 'Activate',   desc: 'Set your password — you will be taken straight to your dashboard.' },
-  { num: '03', title: 'Contribute', desc: 'Pay monthly contributions via M-Pesa STK Push or Paybill.'         },
-  { num: '04', title: 'Benefit',    desc: 'Access loans, claims and welfare benefits when you need them.'      },
+  { num: '01', Icon: UserPlus,   title: 'Register',   desc: 'Your admin creates your account and sends you an activation link.'  },
+  { num: '02', Icon: KeyRound,   title: 'Activate',   desc: 'Set your password — you will be taken straight to your dashboard.' },
+  { num: '03', Icon: CreditCard, title: 'Contribute', desc: 'Pay monthly contributions via M-Pesa STK Push or Paybill.'         },
+  { num: '04', Icon: Gift,       title: 'Benefit',    desc: 'Access loans, claims and welfare benefits when you need them.'      },
+]
+
+const ABOUT_VALUES = [
+  { Icon: Handshake,   title: 'Solidarity',    desc: "We carry each other's burdens as a community." },
+  { Icon: ShieldCheck, title: 'Transparency',  desc: 'Every shilling tracked and accounted for.'     },
+  { Icon: Zap,         title: 'Fast Response', desc: 'Claims processed within 5 working days.'       },
+  { Icon: Smartphone,  title: 'Digital First', desc: 'Pay, track and manage from your phone.'        },
 ]
 
 const STATS = [
@@ -92,6 +129,29 @@ const css = `
   .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
   .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; position: relative; }
   .steps-line { position: absolute; top: 36px; left: 12.5%; right: 12.5%; height: 2px; background: linear-gradient(90deg, var(--navy-mid), var(--gold)); z-index: 0; }
+
+  .service-card {
+    background: #fff; border-radius: 16px; padding: 28px 24px;
+    border: 1px solid #e2e8f0; transition: all 0.2s ease;
+  }
+  .service-card:hover {
+    border-color: #1e3a6e;
+    box-shadow: 0 8px 32px rgba(30,58,110,0.1);
+    transform: translateY(-3px);
+  }
+  .service-icon-wrap {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: rgba(30,58,110,0.07);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+
+  .value-icon-wrap {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(230,176,32,0.1);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+  }
 
   /* ── FOOTER ── */
   .footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 48px; align-items: start; }
@@ -224,7 +284,7 @@ export default function LandingPage() {
     const perm = await requestPushPermission()
     if (perm === 'granted') {
       const ok = await subscribeToPush()
-      setToast(ok ? "🔔 Notifications enabled! You'll hear about updates & reminders." : '🔔 Notifications enabled!')
+      setToast(ok ? "Notifications enabled! You'll hear about updates & reminders." : 'Notifications enabled!')
     } else {
       setToast('Notifications blocked. You can enable them in browser settings.')
     }
@@ -236,7 +296,7 @@ export default function LandingPage() {
     if (!installPrompt) return
     // @ts-expect-error non-standard API
     const result = await installPrompt.prompt()
-    if (result?.outcome === 'accepted') { setShowInstall(false); setToast('✅ App installed! Find it on your home screen.') }
+    if (result?.outcome === 'accepted') { setShowInstall(false); setToast('App installed! Find it on your home screen.') }
   }
 
   return (
@@ -263,7 +323,11 @@ export default function LandingPage() {
             {NAV_LINKS.map(l => <a key={l.href} href={l.href} className="nav-link">{l.label}</a>)}
           </nav>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            {showInstall && <button className="install-btn visible" onClick={handleInstall}>⬇️ Install App</button>}
+            {showInstall && (
+              <button className="install-btn visible" onClick={handleInstall}>
+                <Download size={14} /> Install App
+              </button>
+            )}
             <Link href="/login" className="nav-login-desktop" style={{ background: '#e6b020', color: '#0f2040', padding: '9px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: 'none', marginLeft: showInstall ? 8 : 0 }}>
               Member Login
             </Link>
@@ -299,7 +363,7 @@ export default function LandingPage() {
                 death benefits, educational support, medical assistance for families in Crater Seventh Day Adventist Church.
               </p>
               <a href="#about" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', color: '#fff', padding: '13px 28px', borderRadius: 10, fontSize: 15, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.15)' }}>
-                Learn More ↓
+                Learn More <ChevronDown size={16} />
               </a>
             </div>
             <div className="hero-card" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 36 }}>
@@ -354,16 +418,13 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="about-values">
-              {[
-                { icon: '🤝', title: 'Solidarity',   desc: "We carry each other's burdens as a community." },
-                { icon: '🔒', title: 'Transparency', desc: 'Every shilling tracked and accounted for.'     },
-                { icon: '⚡', title: 'Fast Response', desc: 'Claims processed within 5 working days.'      },
-                { icon: '📱', title: 'Digital First', desc: 'Pay, track and manage from your phone.'       },
-              ].map(v => (
-                <div key={v.title} style={{ background: '#f8fafc', borderRadius: 14, padding: 22, border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 28, marginBottom: 10 }}>{v.icon}</div>
-                  <div style={{ fontWeight: 600, fontSize: 15, color: '#0f2040', marginBottom: 6 }}>{v.title}</div>
-                  <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{v.desc}</div>
+              {ABOUT_VALUES.map(({ Icon, title, desc }) => (
+                <div key={title} style={{ background: '#f8fafc', borderRadius: 14, padding: 22, border: '1px solid #e2e8f0' }}>
+                  <div className="value-icon-wrap">
+                    <Icon size={20} color="#e6b020" strokeWidth={1.75} />
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: '#0f2040', marginBottom: 6 }}>{title}</div>
+                  <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{desc}</div>
                 </div>
               ))}
             </div>
@@ -379,15 +440,13 @@ export default function LandingPage() {
             <h2 style={{ fontFamily: 'Georgia,serif', fontSize: 36, fontWeight: 700, color: '#0f2040' }}>Our Welfare Services</h2>
           </div>
           <div className="services-grid">
-            {SERVICES.map(s => (
-              <div key={s.title}
-                style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', border: '1px solid #e2e8f0', transition: 'all 0.2s ease' }}
-                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor='#1e3a6e'; el.style.boxShadow='0 8px 32px rgba(30,58,110,0.1)'; el.style.transform='translateY(-3px)' }}
-                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor='#e2e8f0'; el.style.boxShadow='none'; el.style.transform='none' }}
-              >
-                <div style={{ fontSize: 32, marginBottom: 12 }}>{s.icon}</div>
-                <div style={{ fontWeight: 600, fontSize: 16, color: '#0f2040', marginBottom: 8 }}>{s.title}</div>
-                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>{s.desc}</div>
+            {SERVICES.map(({ Icon, title, desc }) => (
+              <div key={title} className="service-card">
+                <div className="service-icon-wrap">
+                  <Icon size={22} color="#1e3a6e" strokeWidth={1.75} />
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 16, color: '#0f2040', marginBottom: 8 }}>{title}</div>
+                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>{desc}</div>
               </div>
             ))}
           </div>
@@ -403,11 +462,19 @@ export default function LandingPage() {
           </div>
           <div className="steps-grid">
             <div className="steps-line"/>
-            {STEPS.map((s, i) => (
-              <div key={s.num} style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-                <div style={{ width: 54, height: 54, borderRadius: '50%', background: i === 3 ? '#e6b020' : '#1e3a6e', color: i === 3 ? '#0f2040' : '#fff', fontFamily: 'Georgia,serif', fontWeight: 700, fontSize: 17, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', border: '3px solid #fff', boxShadow: '0 4px 16px rgba(30,58,110,0.2)' }}>{s.num}</div>
-                <div style={{ fontWeight: 600, fontSize: 15, color: '#0f2040', marginBottom: 8 }}>{s.title}</div>
-                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.65 }}>{s.desc}</div>
+            {STEPS.map(({ num, Icon, title, desc }, i) => (
+              <div key={num} style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+                <div style={{
+                  width: 54, height: 54, borderRadius: '50%',
+                  background: i === 3 ? '#e6b020' : '#1e3a6e',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 18px', border: '3px solid #fff',
+                  boxShadow: '0 4px 16px rgba(30,58,110,0.2)',
+                }}>
+                  <Icon size={22} color={i === 3 ? '#0f2040' : '#fff'} strokeWidth={1.75} />
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 15, color: '#0f2040', marginBottom: 8 }}>{title}</div>
+                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.65 }}>{desc}</div>
               </div>
             ))}
           </div>
@@ -421,8 +488,8 @@ export default function LandingPage() {
           <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.6)', marginBottom: 32, lineHeight: 1.7 }}>
             Log into your dashboard to check contributions, make payments, submit claims and view your welfare standing.
           </p>
-          <Link href="/login" style={{ background: '#e6b020', color: '#0f2040', padding: '15px 48px', borderRadius: 12, fontSize: 16, fontWeight: 700, textDecoration: 'none', display: 'inline-block' }}>
-            Member Login →
+          <Link href="/login" style={{ background: '#e6b020', color: '#0f2040', padding: '15px 48px', borderRadius: 12, fontSize: 16, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            Member Login <ArrowRight size={18} />
           </Link>
         </div>
       </section>
@@ -430,11 +497,7 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer id="contact" className="footer-section" style={{ background: '#0f2040', padding: '64px 40px 0' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-
-          {/* ── MAIN FOOTER COLUMNS ── */}
           <div className="footer-grid">
-
-            {/* Column 1 — Brand */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
                 <Image src="/apple-touch-icon.png" alt="Crater SDA Welfare Society Logo" width={40} height={40} style={{ borderRadius: 9, objectFit: 'contain' }} />
@@ -450,8 +513,6 @@ export default function LandingPage() {
                 &ldquo;Bear ye one another&rsquo;s burdens, and so fulfil the law of Christ.&rdquo; Galatians 6:2 (KJV)
               </p>
             </div>
-
-            {/* Column 2 — Quick Links */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#f5c842', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 18 }}>Quick Links</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -461,8 +522,6 @@ export default function LandingPage() {
                 <a href="mailto:doanemusa561@gmail.com" className="footer-nav-link">Contact Us</a>
               </div>
             </div>
-
-            {/* Column 3 — Legal & Policies */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#f5c842', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 18 }}>Legal & Policies</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -473,10 +532,8 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* ── DIVIDER ── */}
           <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '40px 0 0' }} />
 
-          {/* ── BOTTOM BAR ── */}
           <div style={{ padding: '20px 0 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>
               © {new Date().getFullYear()} Crater SDA Welfare Society · Nakuru, Kenya
@@ -489,14 +546,16 @@ export default function LandingPage() {
               <Link href="/legal/cookies" className="footer-legal-link">Cookies</Link>
             </div>
           </div>
-
         </div>
       </footer>
 
       {/* ── PUSH NOTIFICATION BANNER ── */}
       {showPushBanner && (
         <div className="push-banner" role="dialog" aria-label="Enable notifications">
-          <p>🔔 <strong style={{ color: '#fff' }}>Stay informed</strong> — get notified about contribution reminders, claim updates and society announcements.</p>
+          <p style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Bell size={16} color="#f5c842" style={{ flexShrink: 0 }} />
+            <span><strong style={{ color: '#fff' }}>Stay informed</strong> — get notified about contribution reminders, claim updates and society announcements.</span>
+          </p>
           <div className="push-banner-actions">
             <button className="push-btn-allow"   onClick={handleAllowPush}>Allow</button>
             <button className="push-btn-dismiss" onClick={handleDismissPush}>Not now</button>
@@ -505,7 +564,12 @@ export default function LandingPage() {
       )}
 
       {/* ── TOAST ── */}
-      {toast && <div className="notif-toast" role="status">{toast}</div>}
+      {toast && (
+        <div className="notif-toast" role="status">
+          <CheckCircle2 size={16} color="#f5c842" />
+          {toast}
+        </div>
+      )}
     </div>
   )
 }
