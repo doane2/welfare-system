@@ -16,6 +16,14 @@ const ROLE_LABELS: Record<string, string> = {
   SECRETARY:   'Secretary',
 }
 
+// ── Per-KPI color config ─────────────────────────────────────────────────────
+const KPI_COLORS = [
+  { color: '#1e3a6e', bg: '#eef2ff' }, // Total Members     → navy/blue
+  { color: '#b45309', bg: '#fef3c7' }, // Pending Payments  → amber
+  { color: '#0f766e', bg: '#f0fdf4' }, // Pending Loans     → teal/green
+  { color: '#7c3aed', bg: '#f5f3ff' }, // Pending Claims    → purple
+]
+
 export default function AdminDashboardPage() {
   const { user }              = useAuth()
   const router                = useRouter()
@@ -48,8 +56,6 @@ export default function AdminDashboardPage() {
 
   const role = user?.role || 'SUPER_ADMIN'
 
-  // ── Quick actions scoped by role ─────────────────────────────────────────────
-  // SUPER_ADMIN: add member → /admin/members/new (dedicated page, NOT dynamic [id])
   const actions = [
     ...(role === 'SUPER_ADMIN' ? [
       { href: '/admin/members/new', label: 'Add new member',   icon: '👤', color: '#1e3a6e', badge: null },
@@ -70,6 +76,13 @@ export default function AdminDashboardPage() {
     ] : []),
   ].slice(0, 4)
 
+  const kpiCards = [
+    { label: 'Total Members',    value: stats?.totalMembers,  icon: '👥', href: '/admin/members',  ...KPI_COLORS[0] },
+    { label: 'Pending Payments', value: stats?.pendingPays,   icon: '⏳', href: '/admin/payments', ...KPI_COLORS[1] },
+    { label: 'Pending Loans',    value: stats?.pendingLoans,  icon: '🏦', href: '/admin/loans',    ...KPI_COLORS[2] },
+    { label: 'Pending Claims',   value: stats?.pendingClaims, icon: '🏥', href: '/admin/claims',   ...KPI_COLORS[3] },
+  ]
+
   return (
     <div style={{ padding: '32px 36px' }}>
 
@@ -89,25 +102,30 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
-      {/* ── KPI cards ────────────────────────────────────────────────────────── */}
+      {/* ── KPI cards (reduced height, distinct colors) ───────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, marginBottom: 32 }}>
-        {[
-          { label: 'Total Members',    value: stats?.totalMembers,   icon: '👥', color: '#1e3a6e', bg: '#eef2ff', href: '/admin/members'      },
-          { label: 'Pending Payments', value: stats?.pendingPays,    icon: '⏳', color: '#b45309', bg: '#fef3c7', href: '/admin/payments'      },
-          { label: 'Pending Loans',    value: stats?.pendingLoans,   icon: '🏦', color: '#0f766e', bg: '#f0fdf4', href: '/admin/loans'         },
-          { label: 'Pending Claims',   value: stats?.pendingClaims,  icon: '🏥', color: '#7c3aed', bg: '#f5f3ff', href: '/admin/claims'        },
-        ].map(k => (
+        {kpiCards.map(k => (
           <Link key={k.label} href={k.href} style={{ textDecoration: 'none' }}>
-            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 24, cursor: 'pointer', transition: 'all 0.2s' }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 8px 24px rgba(30,58,110,0.1)'; el.style.transform = 'translateY(-2px)' }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.transform = 'none' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div
+              style={{
+                background: '#fff',
+                border: `1.5px solid ${k.bg}`,
+                borderTop: `3px solid ${k.color}`,
+                borderRadius: 14,
+                padding: '16px 20px',       // ← reduced from 24px
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 6px 20px rgba(30,58,110,0.1)'; el.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.transform = 'none' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{k.label}</div>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{k.icon}</div>
+                <div style={{ width: 30, height: 30, borderRadius: 8, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{k.icon}</div>
               </div>
-              <div style={{ fontFamily: 'Georgia,serif', fontSize: 32, fontWeight: 700, color: k.color }}>
+              <div style={{ fontFamily: 'Georgia,serif', fontSize: 26, fontWeight: 700, color: k.color, lineHeight: 1 }}>
                 {loading
-                  ? <span style={{ height: 28, width: 40, display: 'block', background: '#f1f5f9', borderRadius: 6, animation: 'pulse 1.5s ease infinite' }} />
+                  ? <span style={{ height: 22, width: 40, display: 'block', background: '#f1f5f9', borderRadius: 6, animation: 'pulse 1.5s ease infinite' }} />
                   : (k.value ?? '—')}
               </div>
             </div>

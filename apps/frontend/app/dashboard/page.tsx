@@ -38,22 +38,38 @@ function greet() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
 }
 
+// ── Per-KPI color config (distinct per card) ─────────────────────────────────
+const KPI_COLORS = [
+  { accent: '#1e3a6e', bg: '#eef2ff' }, // Total contributed → navy/blue
+  { accent: '#0369a1', bg: '#e0f2fe' }, // Paid this year    → sky blue
+  { accent: '#b45309', bg: '#fef3c7' }, // Arrears balance   → amber (overrides to green when paid)
+  { accent: '#7c3aed', bg: '#f5f3ff' }, // Welfare standing  → purple (overrides per standing)
+]
+
 function KpiCard({ label, value, sub, icon, color, bg, isStatus = false }: {
   label: string; value: string; sub: string; icon: string
   color: string; bg: string; isStatus?: boolean
 }) {
   return (
     <div
-      style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 22, transition: 'all 0.2s', cursor: 'default' }}
-      onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 8px 24px rgba(30,58,110,0.1)'; el.style.transform = 'translateY(-2px)' }}
+      style={{
+        background: '#fff',
+        border: `1.5px solid ${bg}`,
+        borderTop: `3px solid ${color}`,
+        borderRadius: 14,
+        padding: '14px 18px',            // ← reduced from 22px
+        transition: 'all 0.2s',
+        cursor: 'default',
+      }}
+      onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 6px 20px rgba(30,58,110,0.1)'; el.style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = 'none'; el.style.transform = 'none' }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>{icon}</div>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{icon}</div>
       </div>
-      <div style={{ fontFamily: isStatus ? 'inherit' : 'Georgia,serif', fontSize: isStatus ? 17 : 24, fontWeight: 700, color, marginBottom: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.4 }}>{sub}</div>
+      <div style={{ fontFamily: isStatus ? 'inherit' : 'Georgia,serif', fontSize: isStatus ? 15 : 22, fontWeight: 700, color, marginBottom: 4, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>{sub}</div>
     </div>
   )
 }
@@ -80,7 +96,7 @@ const css = `
   @media (max-width: 640px) {
     .dash-page     { padding: 20px 16px; }
     .kpi-grid      { grid-template-columns: repeat(2,1fr); gap: 10px; }
-    .kpi-grid > div{ padding: 16px 14px !important; }
+    .kpi-grid > div{ padding: 12px 14px !important; }
     .chart-actions { grid-template-columns: 1fr; gap: 16px; }
     .deps-grid     { grid-template-columns: 1fr 1fr; }
     .member-banner { padding: 14px 16px; gap: 12px; }
@@ -118,7 +134,6 @@ export default function DashboardPage() {
         if (annRes.status   === 'fulfilled') setAnnouncements(annRes.value.data.announcements || [])
         if (depRes.status   === 'fulfilled') setDependents(depRes.value.data.dependents || [])
         if (auditRes.status === 'fulfilled') setAuditLogs(auditRes.value.data.auditLogs || [])
-        // Load read state from localStorage after announcements are set
         setReadIds(getReadIds())
       } catch { toast.error('Failed to load dashboard') }
       finally  { setLoading(false) }
@@ -140,11 +155,44 @@ export default function DashboardPage() {
 
   const unreadCount = announcements.filter(a => !readIds.has(a.id)).length
 
+  // Arrears card dynamically changes color based on balance
+  const arrearsColor = data.arrearsBalance > 0 ? '#b45309' : '#15803d'
+  const arrearsBg    = data.arrearsBalance > 0 ? '#fef3c7' : '#dcfce7'
+
   const kpis = [
-    { label: 'Total contributed', value: `KES ${Number(data.totalContributed || 0).toLocaleString()}`,   sub: 'All approved payments ever',                                                                           icon: '💰', color: '#1e3a6e', bg: '#eef2ff' },
-    { label: 'Paid this year',    value: `KES ${Number(data.annualPaidThisYear || 0).toLocaleString()}`,  sub: `Jan – Mar ${new Date().getFullYear()} · Target: KES ${Number(annualRate).toLocaleString()}`,          icon: '📅', color: '#0369a1', bg: '#e0f2fe' },
-    { label: 'Arrears balance',   value: `KES ${Number(data.arrearsBalance || 0).toLocaleString()}`,      sub: data.arrearsBalance > 0 ? `${data.unpaidMonths} month(s) outstanding` : 'All paid up ✓',              icon: data.arrearsBalance > 0 ? '⚠️' : '✓', color: data.arrearsBalance > 0 ? '#b45309' : '#15803d', bg: data.arrearsBalance > 0 ? '#fef3c7' : '#dcfce7' },
-    { label: 'Welfare standing',  value: sc.label,                                                         sub: `${new Date().getFullYear()} obligation: KES ${Number(annualRate).toLocaleString()}`,                  icon: sc.icon, color: sc.color, bg: sc.bg, isStatus: true },
+    {
+      label: 'Total contributed',
+      value: `KES ${Number(data.totalContributed || 0).toLocaleString()}`,
+      sub:   'All approved payments ever',
+      icon:  '💰',
+      color: KPI_COLORS[0].accent,
+      bg:    KPI_COLORS[0].bg,
+    },
+    {
+      label: 'Paid this year',
+      value: `KES ${Number(data.annualPaidThisYear || 0).toLocaleString()}`,
+      sub:   `Jan – Mar ${new Date().getFullYear()} · Target: KES ${Number(annualRate).toLocaleString()}`,
+      icon:  '📅',
+      color: KPI_COLORS[1].accent,
+      bg:    KPI_COLORS[1].bg,
+    },
+    {
+      label: 'Arrears balance',
+      value: `KES ${Number(data.arrearsBalance || 0).toLocaleString()}`,
+      sub:   data.arrearsBalance > 0 ? `${data.unpaidMonths} month(s) outstanding` : 'All paid up ✓',
+      icon:  data.arrearsBalance > 0 ? '⚠️' : '✓',
+      color: arrearsColor,
+      bg:    arrearsBg,
+    },
+    {
+      label:    'Welfare standing',
+      value:    sc.label,
+      sub:      `${new Date().getFullYear()} obligation: KES ${Number(annualRate).toLocaleString()}`,
+      icon:     sc.icon,
+      color:    sc.color,
+      bg:       sc.bg,
+      isStatus: true,
+    },
   ]
 
   return (
@@ -226,7 +274,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── KPI cards ────────────────────────────────────────────────────── */}
+      {/* ── KPI cards (reduced height, distinct colors) ───────────────────── */}
       <div className="kpi-grid">
         {kpis.map(k => <KpiCard key={k.label} {...k} />)}
       </div>
@@ -273,7 +321,6 @@ export default function DashboardPage() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: a.primary ? '#fff' : '#0f2040' }}>{a.label}</div>
                   <div style={{ fontSize: 11, color: a.primary ? 'rgba(255,255,255,0.5)' : '#94a3b8' }}>{a.sub}</div>
                 </div>
-                {/* Unread badge on announcements link */}
                 {a.href === '/dashboard/announcements' && unreadCount > 0 && (
                   <span style={{ fontSize: 10, background: '#1e3a6e', color: '#fff', padding: '1px 7px', borderRadius: 99, fontWeight: 700 }}>
                     {unreadCount}
@@ -325,7 +372,6 @@ export default function DashboardPage() {
       {/* ── Announcements ────────────────────────────────────────────────── */}
       {announcements.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 16, padding: '20px 26px', border: '1px solid #e2e8f0' }}>
-          {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ fontWeight: 600, fontSize: 15, color: '#0f2040' }}>📢 Announcements</div>
@@ -340,7 +386,6 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* Top 3 announcements */}
           {announcements.slice(0, 3).map(a => {
             const isRead = readIds.has(a.id)
             return (
@@ -380,7 +425,6 @@ export default function DashboardPage() {
             )
           })}
 
-          {/* View more link */}
           {announcements.length > 3 && (
             <Link href="/dashboard/announcements"
               style={{ display: 'block', textAlign: 'center', padding: '10px', fontSize: 13, color: '#1e3a6e', fontWeight: 500, textDecoration: 'none', background: '#f8fafc', borderRadius: 9, marginTop: 4 }}>
