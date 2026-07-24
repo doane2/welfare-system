@@ -4,15 +4,11 @@ if (process.env.NODE_ENV !== "production") { require("dotenv").config() }
 // ─── Resend Client Setup ──────────────────────────────────────────────────────
 // Free tier: 3,000 emails/month, 100/day
 // Dashboard: https://resend.com/emails
-// To use a custom sender domain later:
-//   1. Resend dashboard → Domains → Add Domain → add DNS records
-//   2. Change FROM_ADDRESS below to e.g. "noreply@cratersda.co.ke"
+// Custom domain (sdacrater.org) is verified in Resend — sending from support@sdacrater.org
 // ─────────────────────────────────────────────────────────────────────────────
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-// While on Resend free tier without a verified domain, use this sender.
-// Once you verify cratersda.co.ke in Resend, change to: "Crater SDA Welfare <noreply@cratersda.co.ke>"
-const FROM_ADDRESS = "Crater SDA Welfare Society <onboarding@resend.dev>"
+const FROM_ADDRESS = "Crater SDA Welfare Society <support@sdacrater.org>"
 
 // ─── Base Email Sender ────────────────────────────────────────────────────────
 const sendEmail = async ({ to, subject, text, html }) => {
