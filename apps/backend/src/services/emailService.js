@@ -596,6 +596,53 @@ Crater SDA Welfare Society Team
 }
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
+// --- Admin invitation: temporary password + invite link --------------------------
+const sendAdminInviteEmail = async ({ email, fullName, roleLabel, inviteLink, tempPassword, expiryHours }) => {
+  if (!email) return
+  const esc = (s) => String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]))
+  await sendEmail({
+    to:      email,
+    subject: "Your Crater SDA Welfare admin account",
+    text: `
+Hello ${fullName},
+
+You have been added as ${roleLabel} on the Crater SDA Welfare system.
+
+Temporary password: ${tempPassword}
+
+Open this link, enter the temporary password and choose your own password:
+${inviteLink}
+
+The link expires in ${expiryHours} hours. Admin sign-in also requires a one-time code sent to your phone and email.
+Never share your password or codes with anyone.
+
+Regards,
+Crater SDA Welfare Society Team
+    `.trim(),
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+        <div style="background:#0f2040;border-radius:12px;padding:28px;text-align:center;margin-bottom:24px">
+          <div style="font-family:Georgia,serif;font-size:22px;color:#f5c842;font-weight:700">Crater SDA Welfare</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;letter-spacing:0.1em;text-transform:uppercase">Administrator Invitation</div>
+        </div>
+        <p style="font-size:15px;color:#374151;margin-bottom:8px">Hello <strong>${esc(fullName)}</strong>,</p>
+        <p style="font-size:14px;color:#64748b;margin:0 0 20px">You have been added as <strong>${esc(roleLabel)}</strong>. Use the temporary password below, then choose your own.</p>
+        <div style="background:#f8fafc;border:2px solid #1e3a6e;border-radius:12px;padding:22px;text-align:center;margin:0 0 20px">
+          <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Temporary password</div>
+          <div style="font-size:26px;font-weight:700;letter-spacing:2px;color:#0f2040;font-family:monospace">${esc(tempPassword)}</div>
+        </div>
+        <div style="text-align:center;margin:0 0 20px">
+          <a href="${esc(inviteLink)}" style="display:inline-block;background:#1e3a6e;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;">Set up my account</a>
+        </div>
+        <p style="font-size:13px;color:#64748b;margin:0 0 8px">This link expires in <strong>${expiryHours} hours</strong>.</p>
+        <p style="font-size:12px;color:#1e3a6e;word-break:break-all;margin:0 0 20px">${esc(inviteLink)}</p>
+        <div style="background:#fef3c7;border-radius:8px;padding:12px 16px;font-size:13px;color:#92400e;margin-bottom:24px">Never share your password or one-time codes with anyone.</div>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 16px"/>
+        <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0">Crater SDA Welfare Society &middot; Nakuru, Kenya</p>
+      </div>
+    `,
+  })
+}
 module.exports = {
   sendActivationEmail,
   sendPaymentApprovedEmail,
@@ -614,4 +661,5 @@ module.exports = {
   sendBeneficiaryRequestProcessedSMS,
   sendPasswordResetEmail,
   sendAccountStatusEmail,
+  sendAdminInviteEmail,
 }

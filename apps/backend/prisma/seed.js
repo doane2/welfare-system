@@ -1,89 +1,34 @@
-if (process.env.NODE_ENV !== 'production') { require("dotenv").config() }
+if (process.env.NODE_ENV !== "production") { require("dotenv").config() }
 const prisma = require("../src/lib/prisma")
 const bcrypt = require("bcrypt")
+const crypto = require("crypto")
 
+// Seeds ONLY the primary super admin. All other admins are added from the super admin dashboard.
 async function main() {
-  // ── Super Admin ───────────────────────────────────────────────────────────
-  const superAdminEmail    = process.env.SUPER_ADMIN_EMAIL || "doanemusa561@gmail.com"
-  const superAdminName     = process.env.SUPER_ADMIN_NAME || "Doane Musa"
-  const superAdminRawPass  = process.env.SUPER_ADMIN_PASSWORD || "SuperSecure123!"
-  const superAdminPassword = await bcrypt.hash(superAdminRawPass, 10)
+  const email = (process.env.SUPER_ADMIN_EMAIL || "doanemusa561@gmail.com").trim()
+  const name = process.env.SUPER_ADMIN_NAME || "Doane Musa"
+  const rawPass = process.env.SUPER_ADMIN_PASSWORD // optional on re-runs
 
-  const superAdmin = await prisma.user.upsert({
-    where:  { email: superAdminEmail },
-    update: {
-      fullName: superAdminName,
-      password: superAdminPassword,
-      role:     "SUPER_ADMIN",
-      isActive: true,
-    },
-    create: {
-      fullName: superAdminName,
-      email:    superAdminEmail,
-      password: superAdminPassword,
-      role:     "SUPER_ADMIN",
-      isActive: true,
-    },
-  })
+  const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } })
 
-  console.log("✅ Super Admin ready:", superAdmin.email)
+  // Guarantee a single primary
+  await prisma.user.updateMany({ where: { isPrimary: true, ...(existing && { id: { not: existing.id } }) }, data: { isPrimary: false } })
 
-  // ── Secretary ─────────────────────────────────────────────────────────────
-  const secretaryEmail    = process.env.SECRETARY_EMAIL || "lauriemongina5@gmail.com"
-  const secretaryName     = process.env.SECRETARY_NAME || "Laurie Mong'ina"
-  const secretaryRawPass  = process.env.SECRETARY_PASSWORD || "SecretarySecure123!"
-  const secretaryPassword = await bcrypt.hash(secretaryRawPass, 10)
-
-  const secretary = await prisma.user.upsert({
-    where:  { email: secretaryEmail },
-    update: {
-      fullName: secretaryName,
-      password: secretaryPassword,
-      role:     "SECRETARY",
-      isActive: true,
-    },
-    create: {
-      fullName: secretaryName,
-      email:    secretaryEmail,
-      password: secretaryPassword,
-      role:     "SECRETARY",
-      isActive: true,
-    },
-  })
-
-  console.log("✅ Secretary ready:", secretary.email)
-
-  // ── Treasurer ─────────────────────────────────────────────────────────────
-  const treasurerEmail    = process.env.TREASURER_EMAIL || "treasurer@gmail.com"
-  const treasurerName     = process.env.TREASURER_NAME || "Treasurer Name"
-  const treasurerRawPass  = process.env.TREASURER_PASSWORD || "TreasurerSecure123!"
-  const treasurerPassword = await bcrypt.hash(treasurerRawPass, 10)
-
-  const treasurer = await prisma.user.upsert({
-    where:  { email: treasurerEmail },
-    update: {
-      fullName: treasurerName,
-      password: treasurerPassword,
-      role:     "TREASURER",
-      isActive: true,
-    },
-    create: {
-      fullName: treasurerName,
-      email:    treasurerEmail,
-      password: treasurerPassword,
-      role:     "TREASURER",
-      isActive: true,
-    },
-  })
-
-  console.log("✅ Treasurer ready:", treasurer.email)
+  if (existing) {
+    const data = { fullName: name, role: "SUPER_ADMIN", isPrimary: true, isActive: true, accountStatus: "ACTIVE", mustChangePassword: false }
+    if (rawPass) { data.password = await bcrypt.hash(rawPass, 10); data.tokenVersion = { increment: 1 } }
+    await prisma.user.update({ where: { id: existing.id }, data })
+    console.log("Primary super admin updated:", existing.email, rawPass ? "(password reset from SUPER_ADMIN_PASSWORD)" : "(password unchanged)")
+  } else {
+    const pass = rawPass || crypto.randomBytes(12).toString("base64").replace(/[^a-zA-Z0-9]/g, "") + "#9a"
+    await prisma.user.create({
+      data: { fullName: name, email, password: await bcrypt.hash(pass, 10), role: "SUPER_ADMIN", isPrimary: true, isActive: true, accountStatus: "ACTIVE" },
+    })
+    console.log("Primary super admin created:", email)
+    if (!rawPass) console.log("Generated password (shown once, change it after first login):", pass)
+  }
 }
 
 main()
-  .catch(e => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+  .catch((e) => { console.error(e); process.exit(1) })
+  .finally(async () => { await prisma.$disconnect() })

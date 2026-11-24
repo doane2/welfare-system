@@ -1,24 +1,21 @@
-const express    = require("express")
-const router     = express.Router()
-const auth       = require("../controllers/authController")
+const express = require("express")
+const router = express.Router()
+const auth = require("../controllers/authController")
 const authMiddleware = require("../middleware/authMiddleware")
 
-// POST /api/auth/login         — step 1: verify password, send OTP (admins) or login directly (members)
-router.post("/login",           auth.login)
+// Member sign-in (admins are rejected here and pointed to the admin portal)
+router.post("/login", auth.login)
+// Admin sign-in: step 1 (password) -> OTP, step 2 via /verify-otp
+router.post("/admin/login", auth.adminLogin)
+router.post("/verify-otp", auth.verifyOtp)
+router.post("/resend-otp", auth.resendOtp)
+router.post("/activate", auth.activateAccount)
 
-// POST /api/auth/verify-otp    — step 2 (admins only): verify OTP, receive full JWT
-router.post("/verify-otp",      auth.verifyOtp)
+// Admin invitations (public, token-based)
+router.get("/admin/invite/:token", auth.getAdminInvite)
+router.post("/admin/accept-invite", auth.acceptAdminInvite)
 
-// POST /api/auth/resend-otp    — resend OTP (rate limited to once per minute)
-router.post("/resend-otp",      auth.resendOtp)
-
-// POST /api/auth/activate      — activate account & set password
-router.post("/activate",        auth.activateAccount)
-
-// GET  /api/auth/profile       — get logged-in user profile
-router.get("/profile",          authMiddleware, auth.getProfile)
-
-// PUT  /api/auth/change-password
-router.put("/change-password",  authMiddleware, auth.changePassword)
+router.get("/profile", authMiddleware, auth.getProfile)
+router.put("/change-password", authMiddleware, auth.changePassword)
 
 module.exports = router

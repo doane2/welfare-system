@@ -31,7 +31,7 @@ api.interceptors.response.use(
         localStorage.removeItem('welfare_user')
         document.cookie = 'welfare_token=; Path=/; Max-Age=0'
         document.cookie = 'welfare_role=; Path=/; Max-Age=0'
-        window.location.href = '/login'
+        window.location.href = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/login'
       }
 
       // ── FIX: 403 no longer redirects to /dashboard ───────────────────────
@@ -41,6 +41,9 @@ api.interceptors.response.use(
       // Now we just log it and let the calling component handle the error.
       if (status === 403) {
         console.warn('403 Forbidden:', error.config?.url)
+        if (error.response?.data?.code === 'PASSWORD_CHANGE_REQUIRED' && !window.location.pathname.startsWith('/admin/change-password')) {
+          window.location.href = '/admin/change-password'
+        }
         // Do NOT redirect — just reject so the caller can handle it gracefully
       }
     }
@@ -152,5 +155,20 @@ export const getMembersReport   = (year: number) => api.get(`/reports/members?ye
 export const getFinancialReport = (year: number) => api.get(`/reports/financial?year=${year}`)
 export const flagDeceased       = (data: any)    => api.post('/reports/deceased', data)
 export const unflagDeceased     = (data: any)    => api.post('/reports/unflag-deceased', data)
+
+// -- Administrators (super admins only) --
+export const getAdminUsers         = ()                       => api.get('/admin-users')
+export const createAdminUser       = (data: any)              => api.post('/admin-users', data)
+export const updateAdminUser       = (id: string, data: any)  => api.patch(`/admin-users/${id}`, data)
+export const deactivateAdminUser   = (id: string)             => api.post(`/admin-users/${id}/deactivate`)
+export const reactivateAdminUser   = (id: string)             => api.post(`/admin-users/${id}/reactivate`)
+export const resetAdminCredentials = (id: string)             => api.post(`/admin-users/${id}/reset-credentials`)
+export const deleteAdminUser       = (id: string)             => api.delete(`/admin-users/${id}`)
+
+// -- Executives (read: everyone signed in, write: super admins) --
+export const getExecutives   = (params?: any)             => api.get('/executives', { params })
+export const createExecutive = (data: any)                => api.post('/executives', data)
+export const updateExecutive = (id: string, data: any)    => api.put(`/executives/${id}`, data)
+export const deleteExecutive = (id: string)               => api.delete(`/executives/${id}`)
 
 export default api

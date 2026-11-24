@@ -145,6 +145,15 @@ model User {
 
   resetToken       String?
   resetTokenExpiry DateTime?
+  // -- Admin governance (admin accounts only) --
+  isPrimary           Boolean   @default(false)
+  mustChangePassword  Boolean   @default(false)
+  tokenVersion        Int       @default(0)
+  inviteTokenHash     String?   @unique
+  inviteExpiry        DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  otpAttempts         Int       @default(0)
 
   groupId          String?
   group            Group?        @relation(fields: [groupId], references: [id])
@@ -279,6 +288,12 @@ model Claim {
 
   documents    ClaimDocument[]
   rejectionReason  String?
+  // -- Dual approval (Treasurer + Secretary) --
+  treasurerApprovedById String?
+  treasurerApprovedAt   DateTime?
+  secretaryApprovedById String?
+  secretaryApprovedAt   DateTime?
+  overrideApproval      Boolean   @default(false)
 
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -417,6 +432,7 @@ model AuditLog {
   action    String
   entity    String
   entityId  String?
+  details   String?
 
   userId    String
   user      User     @relation(fields: [userId], references: [id])
@@ -511,4 +527,22 @@ model Announcement {
   // ── NEW ────────────────────────────────────────────────────────────────────
   // Home page: active + priority announcements only
   @@index([active, priority, createdAt(sort: Desc)])
+}
+
+model Executive {
+  id           String    @id @default(uuid())
+  fullName     String
+  position     String
+  phone        String?
+  email        String?
+  bio          String?
+  displayOrder Int       @default(100)
+  termStart    DateTime?
+  termEnd      DateTime?
+  isActive     Boolean   @default(true)
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([isActive, displayOrder])
 }

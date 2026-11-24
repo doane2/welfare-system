@@ -92,6 +92,8 @@ app.use("/api/dependents", require("./routes/dependents"));
 app.use("/api/beneficiary-requests", require("./routes/beneficiaryRequests"));
 app.use("/api/reports", require("./routes/reports"));
 app.use("/api/audit-logs", require("./routes/auditLogs"));
+app.use("/api/admin-users", require("./routes/adminUsers"));
+app.use("/api/executives", require("./routes/executives"));
 
 // ── Detailed Health Check ─────────────────────────────────────────────────────
 app.get("/health", async (req, res) => {

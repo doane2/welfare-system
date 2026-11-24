@@ -90,13 +90,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 4. Navigate — use window.location.href instead of router.push
     //    This does a full page navigation so the browser sends the
     //    newly set cookie with the request, which proxy.ts can read
-    const dest = ADMIN_ROLES.includes(userData.role) ? '/admin' : '/dashboard'
+    const dest = ADMIN_ROLES.includes(userData.role) ? (userData.mustChangePassword ? '/admin/change-password' : '/admin') : '/dashboard'
     window.location.href = dest
   }
 
   const signOut = () => {
     clearAuth()
-    window.location.href = '/login'
+    window.location.href = ADMIN_ROLES.includes(user?.role) ? '/admin/login' : '/login'
   }
 
   return (

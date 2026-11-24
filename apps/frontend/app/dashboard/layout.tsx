@@ -70,6 +70,7 @@ const buildNav = (unreadCount: number) => [
   { href: '/dashboard/beneficiaries', icon: '👥', label: 'Beneficiaries' },
   { href: '/dashboard/statements',    icon: '📄', label: 'Statements'    },
   { href: '/dashboard/announcements', icon: '📢', label: 'Announcements', badge: unreadCount },
+  { href: '/dashboard/executives',    icon: '\u{1F3DB}', label: 'Executive' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

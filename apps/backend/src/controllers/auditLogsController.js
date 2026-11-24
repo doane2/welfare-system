@@ -35,6 +35,17 @@ const ACTION_LABELS = {
   LOGIN:                    "Logged in",
   PASSWORD_CHANGE:          "Changed password",
   PROFILE_UPDATE:           "Updated profile",
+  CREATE_ADMIN:             "Created administrator",
+  UPDATE_ADMIN:             "Updated administrator",
+  DEACTIVATE_ADMIN:         "Deactivated administrator",
+  REACTIVATE_ADMIN:         "Reactivated administrator",
+  RESET_ADMIN_CREDENTIALS:  "Reset administrator credentials",
+  DELETE_ADMIN:             "Deleted administrator",
+  ADMIN_INVITE_ACCEPTED:    "Accepted admin invitation",
+  ACCOUNT_LOCKED:           "Account locked (failed sign-ins)",
+  CREATE_EXECUTIVE:         "Added executive",
+  UPDATE_EXECUTIVE:         "Updated executive",
+  DELETE_EXECUTIVE:         "Removed executive",
 }
 
 const ACTION_COLORS = {
@@ -71,6 +82,17 @@ const ACTION_COLORS = {
   LOGIN:                    "#475569",
   PASSWORD_CHANGE:          "#b45309",
   PROFILE_UPDATE:           "#b45309",
+  CREATE_ADMIN:             "#15803d",
+  UPDATE_ADMIN:             "#b45309",
+  DEACTIVATE_ADMIN:         "#dc2626",
+  REACTIVATE_ADMIN:         "#15803d",
+  RESET_ADMIN_CREDENTIALS:  "#b45309",
+  DELETE_ADMIN:             "#dc2626",
+  ADMIN_INVITE_ACCEPTED:    "#0369a1",
+  ACCOUNT_LOCKED:           "#dc2626",
+  CREATE_EXECUTIVE:         "#15803d",
+  UPDATE_EXECUTIVE:         "#b45309",
+  DELETE_EXECUTIVE:         "#dc2626",
 }
 
 // ── GET /api/audit-logs — admin view (all logs) ───────────────────────────────

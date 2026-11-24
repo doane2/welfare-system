@@ -93,7 +93,7 @@ export default function AdminDashboardPage() {
             {greet()}, {user?.fullName?.split(' ')[0]} 👋
           </h1>
           <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, background: '#eef2ff', color: '#1e3a6e' }}>
-            {ROLE_LABELS[role] || role}
+            {role === 'SUPER_ADMIN' && !user?.isPrimary ? 'Platform Admin' : (ROLE_LABELS[role] || role)}
           </span>
         </div>
         <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
