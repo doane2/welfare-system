@@ -457,9 +457,9 @@ export default function LandingPage() {
             <Reveal variant="left" className="contact-info">
               <h2>Get in touch</h2>
               <p>Want to join, or need help with your account? Send us a message and an administrator will reach out.</p>
-              <a className="info-row" href="mailto:doanemusa561@gmail.com">
+              <a className="info-row" href="mailto:support@sdacrater.org">
                 <span className="info-icon"><Mail size={20} color="#f5c842" /></span>
-                <span><div className="info-label">Email</div><div className="info-value">doanemusa561@gmail.com</div></span>
+                <span><div className="info-label">Email</div><div className="info-value">support@sdacrater.org</div></span>
               </a>
               <div className="info-row">
                 <span className="info-icon"><MapPin size={20} color="#f5c842" /></span>
