@@ -663,3 +663,51 @@ module.exports = {
   sendAccountStatusEmail,
   sendAdminInviteEmail,
 }
+// --- 18. Website contact form ---
+const CONTACT_TYPE_LABELS = {
+  MEMBERSHIP: "Membership", CONTRIBUTIONS: "Contributions and payments", CLAIMS: "Claims and benefits",
+  LOANS: "Loans", SUPPORT: "Technical support", OTHER: "Other",
+}
+
+const sendContactNotificationEmail = async ({ email, contact }) => {
+  if (!email) return
+  await sendEmail({
+    to:      email,
+    subject: `New website enquiry from ${contact.fullName}`,
+    text: `
+A new enquiry was sent through the Crater SDA Welfare website.
+
+Name    : ${contact.fullName}
+Phone   : ${contact.phone}
+Email   : ${contact.email || "not provided"}
+Topic   : ${CONTACT_TYPE_LABELS[contact.inquiryType] || contact.inquiryType}
+
+Message:
+${contact.message}
+
+Open it in the admin portal:
+${process.env.APP_URL}/admin/inquiries
+
+Crater SDA Welfare Society
+    `.trim(),
+  })
+}
+
+const sendContactReceiptEmail = async ({ email, fullName }) => {
+  if (!email) return
+  await sendEmail({
+    to:      email,
+    subject: "We received your message",
+    text: `
+Hello ${fullName},
+
+Thank you for contacting Crater SDA Welfare Society. Your message has been received and an administrator will get back to you.
+
+Regards,
+Crater SDA Welfare Society Team
+    `.trim(),
+  })
+}
+
+module.exports.sendContactNotificationEmail = sendContactNotificationEmail
+module.exports.sendContactReceiptEmail = sendContactReceiptEmail

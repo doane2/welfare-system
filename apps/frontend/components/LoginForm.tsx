@@ -24,7 +24,7 @@ const css = `
     width: 480px; display: flex; align-items: center;
     justify-content: center; padding: 48px;
   }
-  .login-form-wrap { width: 100%; max-width: 380px; }
+  .login-form-wrap { width: 100%; max-width: 420px; padding: 36px 32px; border-radius: 20px; background: rgba(9,21,41,0.62); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 24px 60px rgba(0,0,0,0.35); }
   .login-input {
     width: 100%; padding: 12px 16px; border-radius: 10px;
     font-size: 14px; background: rgba(255,255,255,0.07);
@@ -77,6 +77,7 @@ const css = `
 
 export default function LoginForm({ audience = 'member' }: { audience?: 'member' | 'admin' }) {
   const isAdmin = audience === 'admin'
+  const bgImage = isAdmin ? '/images/login-admin.jpg' : '/images/login-member.jpg'
   const router        = useRouter()
   const { signIn }    = useAuth()
 
@@ -226,7 +227,7 @@ export default function LoginForm({ audience = 'member' }: { audience?: 'member'
   const allFilled = otpDigits.every(d => d !== '')
 
   return (
-    <div className="login-root">
+    <div className="login-root" style={{ backgroundColor: '#091529', backgroundSize: 'cover', backgroundPosition: 'center', backgroundImage: `linear-gradient(160deg, rgba(9,21,41,0.9) 0%, rgba(30,58,110,0.72) 100%), url(${bgImage})` }}>
       <style dangerouslySetInnerHTML={{ __html: css }} />
 
       {/* ── LEFT — branding ──────────────────────────────────────────────── */}
@@ -303,7 +304,7 @@ export default function LoginForm({ audience = 'member' }: { audience?: 'member'
               </form>
 
               <p style={{ marginTop:28, textAlign:'center', fontSize:13, color:'rgba(255,255,255,0.3)' }}>
-                {isAdmin ? (<>Member? <Link href="/login" style={{ color:'#f5c842' }}>Sign in here</Link></>) : (<>Not a member? <span style={{ color:'#f5c842' }}>Contact your welfare administrator</span></>)}
+                {isAdmin ? (<>Member? <Link href="/login" style={{ color:'#f5c842' }}>Sign in here</Link></>) : (<>Not a member? <Link href="/#contact" style={{ color:'#f5c842' }}>Contact your welfare administrator</Link></>)}
               </p>
               <Link href="/" style={{ display:'block', textAlign:'center', marginTop:16, fontSize:13, color:'rgba(255,255,255,0.25)', textDecoration:'none' }}>
                 ← Back to home

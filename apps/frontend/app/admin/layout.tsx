@@ -1,8 +1,9 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '../../lib/auth'
+import api from '../../lib/api'
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'TREASURER', 'SECRETARY']
 const PUBLIC_PATHS = ['/admin/login', '/admin/accept-invite']
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/admin/loans',         icon: '\u{1F3E6}',  label: 'Loans',             roles: ['SUPER_ADMIN', 'TREASURER'] },
   { href: '/admin/claims',        icon: '\u{1F3E5}',  label: 'Claims',            roles: ['SUPER_ADMIN', 'TREASURER', 'SECRETARY'] },
   { href: '/admin/groups',        icon: '\u{1F3D8}',  label: 'Groups',            roles: ['SUPER_ADMIN', 'SECRETARY'] },
+  { href: '/admin/inquiries',     icon: '\u2709',    label: 'Inquiries',         roles: ['SUPER_ADMIN'], countKey: 'inquiries' },
   { href: '/admin/announcements', icon: '\u{1F4E2}',  label: 'Announcements',     roles: ['SUPER_ADMIN', 'SECRETARY'] },
   { href: '/admin/reports',       icon: '\u{1F4CA}',  label: 'Reports',           roles: ['SUPER_ADMIN', 'SECRETARY'] },
   { href: '/admin/notifications', icon: '\u{1F514}',  label: 'Notifications',     roles: ['SUPER_ADMIN', 'TREASURER', 'SECRETARY'] },
@@ -43,6 +45,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p))
   const mustChange = !!user?.mustChangePassword
+  const [newInquiries, setNewInquiries] = useState(0)
+
+  useEffect(() => {
+    if (isPublic || loading || !user || user.role !== 'SUPER_ADMIN' || mustChange) return
+    let alive = true
+    const load = () =>
+      api.get('/contact', { params: { status: 'NEW', limit: 1 } })
+        .then((r: any) => { if (alive) setNewInquiries(r.data?.stats?.new || 0) })
+        .catch(() => {})
+    load()
+    const t = setInterval(load, 60000)
+    return () => { alive = false; clearInterval(t) }
+  }, [user, loading, isPublic, mustChange, pathname])
 
   useEffect(() => {
     if (isPublic || loading) return
@@ -90,6 +105,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.badge && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#e6b020' }} />}
+                {item.countKey === 'inquiries' && newInquiries > 0 && (
+                  <span style={{ minWidth: 20, height: 20, borderRadius: 99, background: '#e6b020', color: '#0f2040', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' }}>{newInquiries}</span>
+                )}
               </Link>
             )
           })}

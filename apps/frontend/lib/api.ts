@@ -172,3 +172,8 @@ export const updateExecutive = (id: string, data: any)    => api.put(`/executive
 export const deleteExecutive = (id: string)               => api.delete(`/executives/${id}`)
 
 export default api
+// -- Contact enquiries (public submit; list/manage = super admins) --
+export const submitContact        = (data: any)             => api.post('/contact', data)
+export const getContactMessages   = (params?: any)          => api.get('/contact', { params })
+export const updateContactMessage = (id: string, data: any) => api.patch(`/contact/${id}`, data)
+export const deleteContactMessage = (id: string)            => api.delete(`/contact/${id}`)

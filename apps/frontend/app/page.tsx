@@ -1,223 +1,93 @@
 'use client'
+import './landing.css'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import {
-  HeartPulse,
-  Bird,
-  GraduationCap,
-  Handshake,
-  ShieldCheck,
-  Zap,
-  Smartphone,
-  UserPlus,
-  KeyRound,
-  CreditCard,
-  Gift,
-  Bell,
-  CheckCircle2,
-  ChevronDown,
-  ArrowRight,
-  Download,
+  HeartPulse, Bird, GraduationCap, Handshake, ShieldCheck, Zap, Smartphone,
+  UserPlus, KeyRound, CreditCard, Gift, Bell, CheckCircle2, ChevronDown, ArrowRight,
+  Download, Wallet, Landmark, Users, ArrowUp, MapPin, Mail, Plus, Lock, FileText,
 } from 'lucide-react'
+import { Reveal, Counter } from '../components/landing/motion'
+import Gallery from '../components/landing/Gallery'
+import ContactForm from '../components/landing/ContactForm'
+
+// Photos live in apps/frontend/public/images (see README.txt in that folder).
+// A missing photo simply shows the navy gradient behind it.
+const IMG = {
+  hero:    '/images/hero.jpg',
+  about:   '/images/about.jpg',
+  how:     '/images/how.jpg',
+  contact: '/images/contact.jpg',
+  cta:     '/images/cta.jpg',
+}
+const bg = (src: string) => ({ backgroundImage: `url(${src})` })
 
 const NAV_LINKS = [
-  { label: 'About',        href: '#about'    },
-  { label: 'Services',     href: '#services' },
-  { label: 'How it works', href: '#how'      },
-  { label: 'Contact',      href: 'mailto:doanemusa561@gmail.com' },
+  { label: 'About',        id: 'about'    },
+  { label: 'Services',     id: 'services' },
+  { label: 'How it works', id: 'how'      },
+  { label: 'Gallery',      id: 'gallery'  },
+  { label: 'FAQ',          id: 'faq'      },
+  { label: 'Contact',      id: 'contact'  },
 ]
 
-const SERVICES = [
-  {
-    Icon: HeartPulse,
-    title: 'Medical Claims',
-    desc: 'Financial support for medical bills, hospitalisation and treatment costs.',
-  },
-  {
-    Icon: Bird,
-    title: 'Death Benefits',
-    desc: 'Compassionate support for bereaved families during their most difficult time.',
-  },
-  {
-    Icon: GraduationCap,
-    title: 'Education Support',
-    desc: "Helping members' children access quality education through bursaries and grants.",
-  },
+const TRUST = [
+  { Icon: Lock,        text: 'Secure sign in'          },
+  { Icon: Smartphone,  text: 'M-Pesa payments'         },
+  { Icon: FileText,    text: 'PDF statements anytime'  },
+  { Icon: ShieldCheck, text: 'Transparent records'     },
 ]
 
-const STEPS = [
-  { num: '01', Icon: UserPlus,   title: 'Register',   desc: 'Your admin creates your account and sends you an activation link.'  },
-  { num: '02', Icon: KeyRound,   title: 'Activate',   desc: 'Set your password — you will be taken straight to your dashboard.' },
-  { num: '03', Icon: CreditCard, title: 'Contribute', desc: 'Pay monthly contributions via M-Pesa STK Push or Paybill.'         },
-  { num: '04', Icon: Gift,       title: 'Benefit',    desc: 'Access loans, claims and welfare benefits when you need them.'      },
+const STATS = [
+  { to: 500, suffix: '+',   label: 'Active members' },
+  { to: 2,   prefix: 'KES ', suffix: 'M+', label: 'Disbursed' },
+  { to: 98,  suffix: '%',   label: 'Claim approval' },
+  { text: '2016',           label: 'Established in Nakuru' },
 ]
 
 const ABOUT_VALUES = [
   { Icon: Handshake,   title: 'Solidarity',    desc: "We carry each other's burdens as a community." },
   { Icon: ShieldCheck, title: 'Transparency',  desc: 'Every shilling tracked and accounted for.'     },
-  { Icon: Zap,         title: 'Fast Response', desc: 'Claims processed within 5 working days.'       },
-  { Icon: Smartphone,  title: 'Digital First', desc: 'Pay, track and manage from your phone.'        },
+  { Icon: Zap,         title: 'Fast response', desc: 'Claims processed within 5 working days.'       },
+  { Icon: Smartphone,  title: 'Digital first', desc: 'Pay, track and manage from your phone.'        },
 ]
 
-const STATS = [
-  { value: '500+',    label: 'Active Members' },
-  { value: 'KES 2M+', label: 'Disbursed'      },
-  { value: '98%',     label: 'Claim Approval' },
-  { value: '2016',    label: 'Est. Nakuru'    },
+const SERVICES = [
+  { Icon: HeartPulse,    title: 'Medical claims',            desc: 'Financial support towards medical bills, hospitalisation and treatment costs.', tag: 'Under consideration' },
+  { Icon: Bird,          title: 'Death benefits',            desc: 'Compassionate support for bereaved families during their most difficult time.' },
+  { Icon: GraduationCap, title: 'Education support',         desc: "Helping members' children access quality education through bursaries and grants.", tag: 'Under consideration' },
+  { Icon: Wallet,        title: 'Contributions and M-Pesa',  desc: 'Pay through M-Pesa STK Push or Paybill, follow every payment and download PDF statements.' },
+  { Icon: Landmark,      title: 'Welfare loans',             desc: 'Eligible members can apply for a welfare loan and follow their repayment schedule online.' },
+  { Icon: Users,         title: 'Beneficiaries and family',  desc: 'Register your dependents and next of kin so support reaches the right people.' },
 ]
 
-const css = `
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+const STEPS = [
+  { num: '01', Icon: UserPlus,   title: 'Register',   desc: 'Your admin creates your account and sends you an activation link.' },
+  { num: '02', Icon: KeyRound,   title: 'Activate',   desc: 'Set your password and go straight to your dashboard.' },
+  { num: '03', Icon: CreditCard, title: 'Contribute', desc: 'Pay monthly contributions via M-Pesa STK Push or Paybill.' },
+  { num: '04', Icon: Gift,       title: 'Benefit',    desc: 'Access loans, claims and welfare benefits when you need them.' },
+]
 
-  :root {
-    --navy:      #0f2040;
-    --navy-deep: #091529;
-    --navy-mid:  #1e3a6e;
-    --gold:      #e6b020;
-    --gold-lt:   #f5c842;
-    --white:     #ffffff;
-    --slate:     #475569;
-    --slate-lt:  #64748b;
-    --bg-soft:   #f8fafc;
-    --border:    #e2e8f0;
-  }
+const FAQ = [
+  { q: 'How do I join the society?', a: 'Use the contact form below and an administrator will guide you through registration. Once your account is created you will receive an activation link to set your password.' },
+  { q: 'How much are the contributions?', a: 'Registration is KES 500, paid once when you join. The annual contribution is KES 2,400 for a single member and KES 6,000 for a family, with 3 months paid upfront. Full annual contributions are due by 31 March each year.' },
+  { q: 'How do I pay?', a: 'Pay from your dashboard with M-Pesa STK Push, or use our Paybill. Your payment is confirmed by an administrator and then shows in your contribution history.' },
+  { q: 'How long do claims take?', a: 'We aim to process claims within 5 working days. Submit your claim and supporting documents from your dashboard and track its status there.' },
+  { q: 'How do I add or change a beneficiary?', a: 'Send a request from the Beneficiaries page in your dashboard. The welfare secretary reviews it within 2 working days and you are notified of the outcome.' },
+  { q: 'I cannot sign in. What should I do?', a: 'Check that you are using the email address your administrator registered. If you still cannot get in, send us a message below and we will help you get access back.' },
+]
 
-  html { scroll-behavior: smooth; }
-  body { font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
-
-  .nav-links { display: flex; gap: 32px; }
-  .nav-link {
-    color: rgba(255,255,255,0.75); font-size: 14px; font-weight: 500;
-    text-decoration: none; transition: color 0.15s;
-    background: none; border: none; cursor: pointer;
-  }
-  .nav-link:hover { color: var(--gold-lt); }
-
-  .hamburger { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 4px; }
-  .hamburger span { display: block; width: 24px; height: 2px; background: #fff; border-radius: 2px; transition: all 0.25s; }
-  .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .hamburger.open span:nth-child(2) { opacity: 0; }
-  .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-  .mobile-menu {
-    display: none; position: fixed; top: 68px; left: 0; right: 0;
-    background: rgba(9,21,41,0.98); backdrop-filter: blur(16px);
-    padding: 24px 24px 32px; flex-direction: column; gap: 0;
-    border-bottom: 1px solid rgba(255,255,255,0.08); z-index: 99;
-  }
-  .mobile-menu.open { display: flex; }
-  .mobile-menu a, .mobile-menu button {
-    color: rgba(255,255,255,0.8); font-size: 16px; font-weight: 500;
-    text-decoration: none; padding: 14px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    background: none; border-left: none; border-right: none; border-top: none;
-    cursor: pointer; text-align: left; font-family: 'DM Sans', sans-serif;
-  }
-  .mobile-menu a:last-child { border-bottom: none; }
-  .mobile-login {
-    margin-top: 20px; background: var(--gold) !important;
-    color: var(--navy) !important; padding: 13px 0 !important;
-    border-radius: 10px; text-align: center !important;
-    font-weight: 700; border: none !important;
-  }
-
-  .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; width: 100%; }
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
-  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
-  .about-values { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
-  .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; position: relative; }
-  .steps-line { position: absolute; top: 36px; left: 12.5%; right: 12.5%; height: 2px; background: linear-gradient(90deg, var(--navy-mid), var(--gold)); z-index: 0; }
-
-  .service-card {
-    background: #fff; border-radius: 16px; padding: 28px 24px;
-    border: 1px solid #e2e8f0; transition: all 0.2s ease;
-  }
-  .service-card:hover {
-    border-color: #1e3a6e;
-    box-shadow: 0 8px 32px rgba(30,58,110,0.1);
-    transform: translateY(-3px);
-  }
-  .service-icon-wrap {
-    width: 48px; height: 48px; border-radius: 12px;
-    background: rgba(30,58,110,0.07);
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 14px;
-  }
-
-  .value-icon-wrap {
-    width: 40px; height: 40px; border-radius: 10px;
-    background: rgba(230,176,32,0.1);
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 10px;
-  }
-
-  /* ── FOOTER ── */
-  .footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 48px; align-items: start; }
-  .footer-nav-link { color: rgba(255,255,255,0.4); font-size: 13px; text-decoration: none; transition: color 0.15s; display: inline-block; }
-  .footer-nav-link:hover { color: #f5c842; }
-  .footer-legal-link { color: rgba(255,255,255,0.25); font-size: 12px; text-decoration: none; transition: color 0.15s; }
-  .footer-legal-link:hover { color: rgba(255,255,255,0.5); }
-
-  .notif-toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: var(--navy-mid); color: #fff; padding: 14px 22px;
-    border-radius: 12px; font-size: 14px; font-weight: 500;
-    border: 1px solid rgba(230,176,32,0.3); box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-    display: flex; align-items: center; gap: 10px; z-index: 9999; white-space: nowrap;
-    animation: slideUp 0.3s ease;
-  }
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateX(-50%) translateY(12px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-  }
-
-  .push-banner {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
-    background: var(--navy-deep); border-top: 1px solid rgba(230,176,32,0.25);
-    padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
-    gap: 16px; flex-wrap: wrap; box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
-  }
-  .push-banner p { font-size: 14px; color: rgba(255,255,255,0.8); flex: 1; min-width: 200px; }
-  .push-banner-actions { display: flex; gap: 10px; }
-  .push-btn-allow { background: var(--gold); color: var(--navy); padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
-  .push-btn-dismiss { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; font-family: 'DM Sans', sans-serif; }
-
-  @media (max-width: 900px) {
-    .hero-grid { grid-template-columns: 1fr; gap: 40px; }
-    .about-grid { grid-template-columns: 1fr; gap: 40px; }
-    .services-grid { grid-template-columns: 1fr 1fr; }
-    .steps-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
-    .steps-line { display: none; }
-    .footer-grid { grid-template-columns: 1fr 1fr; gap: 36px; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; }
-  }
-
-  @media (max-width: 600px) {
-    .nav-links { display: none; }
-    .nav-login-desktop { display: none !important; }
-    .hamburger { display: flex; }
-    .hero-section { padding: 100px 20px 60px !important; }
-    .hero-h1 { font-size: clamp(28px, 8vw, 42px) !important; }
-    .hero-card { padding: 22px 18px !important; }
-    .stats-section { padding: 40px 20px !important; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
-    .about-section { padding: 60px 20px !important; }
-    .about-values { grid-template-columns: 1fr !important; }
-    .services-section { padding: 60px 20px !important; }
-    .services-grid { grid-template-columns: 1fr; }
-    .how-section { padding: 60px 20px !important; }
-    .steps-grid { grid-template-columns: 1fr; gap: 20px; }
-    .cta-section { padding: 60px 20px !important; }
-    .footer-section { padding: 48px 20px 0 !important; }
-    .footer-grid { grid-template-columns: 1fr; gap: 32px; }
-    .push-banner { padding: 14px 16px; }
-  }
-
-  .install-btn { display: none; background: rgba(230,176,32,0.12); color: var(--gold-lt); border: 1px solid rgba(230,176,32,0.3); padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; margin-left: 12px; }
-  .install-btn.visible { display: inline-flex; align-items: center; gap: 6px; }
-`
+// Sample updates. When members are actively using the system, flip USE_LIVE_ANNOUNCEMENTS to true.
+// It needs a PUBLIC endpoint (GET /api/announcements/public) that returns { announcements: [...] }
+// with only active announcements, because /api/announcements/active currently requires sign in.
+const USE_LIVE_ANNOUNCEMENTS = false
+type UpdateItem = { tag: string; title: string; text: string }
+const SAMPLE_UPDATES: UpdateItem[] = [
+  { tag: 'Reminder', title: 'Annual contributions are due by 31 March', text: 'Members are reminded to complete their annual contribution before the deadline. You can pay securely with M-Pesa from your dashboard.' },
+  { tag: 'Notice',   title: 'Welfare meeting notice',                    text: 'Members will be invited to the next welfare meeting. The date and venue will be shared here and by SMS once confirmed.' },
+  { tag: 'Tip',      title: 'Keep your beneficiaries up to date',        text: 'Review your dependents and next of kin in your dashboard so that support reaches the right people when it is needed.' },
+]
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -243,9 +113,23 @@ async function requestPushPermission(): Promise<NotificationPermission> {
   return Notification.requestPermission()
 }
 
+function SectionHead({ title, sub, light }: { title: string; sub?: string; light?: boolean }) {
+  return (
+    <div className={`sec-head ${light ? 'light' : ''}`}>
+      <h2 className="sec-title">{title}</h2>
+      {sub && <p className="sec-sub">{sub}</p>}
+    </div>
+  )
+}
+
 export default function LandingPage() {
   const [scrolled,       setScrolled]       = useState(false)
+  const [progress,       setProgress]       = useState(0)
+  const [showTop,        setShowTop]        = useState(false)
   const [menuOpen,       setMenuOpen]       = useState(false)
+  const [activeId,       setActiveId]       = useState('')
+  const [openFaq,        setOpenFaq]        = useState<number | null>(0)
+  const [updates,        setUpdates]        = useState<UpdateItem[]>(SAMPLE_UPDATES)
   const [showPushBanner, setShowPushBanner] = useState(false)
   const [toast,          setToast]          = useState<string | null>(null)
   const [installPrompt,  setInstallPrompt]  = useState<Event | null>(null)
@@ -262,9 +146,27 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40)
-    window.addEventListener('scroll', onScroll)
+    const onScroll = () => {
+      const y = window.scrollY
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      setScrolled(y > 40)
+      setShowTop(y > 700)
+      setProgress(max > 0 ? Math.min(100, (y / max) * 100) : 0)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Highlight the nav link of the section currently on screen
+  useEffect(() => {
+    const els = NAV_LINKS.map(l => document.getElementById(l.id)).filter(Boolean) as HTMLElement[]
+    if (!els.length || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) setActiveId(e.target.id) })
+    }, { rootMargin: '-40% 0px -55% 0px' })
+    els.forEach(el => io.observe(el))
+    return () => io.disconnect()
   }, [])
 
   useEffect(() => {
@@ -274,9 +176,23 @@ export default function LandingPage() {
   }, [toast])
 
   useEffect(() => {
-    const onResize = () => { if (window.innerWidth > 600) setMenuOpen(false) }
+    const onResize = () => { if (window.innerWidth > 720) setMenuOpen(false) }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  useEffect(() => {
+    if (!USE_LIVE_ANNOUNCEMENTS) return
+    fetch('/api/announcements/public')
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.announcements) && d.announcements.length) {
+          setUpdates(d.announcements.slice(0, 3).map((a: any) => ({
+            tag: a.priority ? 'Pinned' : 'Update', title: a.title, text: a.content,
+          })))
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const handleAllowPush = async () => {
@@ -289,7 +205,6 @@ export default function LandingPage() {
       setToast('Notifications blocked. You can enable them in browser settings.')
     }
   }
-
   const handleDismissPush = () => { setShowPushBanner(false); sessionStorage.setItem('push-banner-dismissed', '1') }
 
   const handleInstall = async () => {
@@ -300,270 +215,346 @@ export default function LandingPage() {
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <style dangerouslySetInnerHTML={{ __html: css }} />
+    <div className="landing">
+      <div className="scroll-progress" style={{ width: `${progress}%` }} />
 
-      {/* ── NAVBAR ── */}
-      <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        background: scrolled ? 'rgba(15,32,64,0.97)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(12px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.08)' : 'none',
-        transition: 'all 0.3s ease', padding: '0 40px',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 68 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Image src="/apple-touch-icon.png" alt="Crater SDA Welfare Society Logo" width={42} height={42} style={{ borderRadius: 10, objectFit: 'contain' }} />
+      {/* NAVBAR */}
+      <header className={`site-header ${scrolled ? 'scrolled' : ''}`}>
+        <div className="header-inner">
+          <a href="#top" className="brand">
+            <Image src="/apple-touch-icon.png" alt="Crater SDA Welfare Society logo" width={42} height={42} style={{ borderRadius: 10, objectFit: 'contain' }} />
             <div>
-              <div style={{ fontFamily: 'Georgia,serif', fontWeight: 700, fontSize: 16, color: '#fff', lineHeight: 1.1 }}>Crater SDA</div>
-              <div style={{ fontSize: 11, color: '#f5c842', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Welfare Society</div>
+              <div className="brand-name">Crater SDA</div>
+              <div className="brand-sub">Welfare Society</div>
             </div>
-          </div>
+          </a>
           <nav className="nav-links">
-            {NAV_LINKS.map(l => <a key={l.href} href={l.href} className="nav-link">{l.label}</a>)}
+            {NAV_LINKS.map(l => (
+              <a key={l.id} href={`#${l.id}`} className={`nav-link ${activeId === l.id ? 'active' : ''}`}>{l.label}</a>
+            ))}
           </nav>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div className="nav-actions">
             {showInstall && (
-              <button className="install-btn visible" onClick={handleInstall}>
-                <Download size={14} /> Install App
-              </button>
+              <button className="install-btn" onClick={handleInstall}><Download size={14} /> Install app</button>
             )}
-            <Link href="/login" className="nav-login-desktop" style={{ background: '#e6b020', color: '#0f2040', padding: '9px 24px', borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: 'none', marginLeft: showInstall ? 8 : 0 }}>
-              Member Login
-            </Link>
+            <Link href="/login" className="btn-login nav-login-desktop">Member login</Link>
+            <button className={`hamburger ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(o => !o)} aria-label="Toggle menu">
+              <span /><span /><span />
+            </button>
           </div>
-          <button className={`hamburger ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(o => !o)} aria-label="Toggle menu">
-            <span/><span/><span/>
-          </button>
         </div>
       </header>
 
-      {/* ── MOBILE MENU ── */}
       <nav className={`mobile-menu ${menuOpen ? 'open' : ''}`}>
-        {NAV_LINKS.map(l => <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}>{l.label}</a>)}
-        <Link href="/login" className="mobile-login" onClick={() => setMenuOpen(false)}>Member Login →</Link>
+        {NAV_LINKS.map(l => <a key={l.id} href={`#${l.id}`} onClick={() => setMenuOpen(false)}>{l.label}</a>)}
+        <Link href="/login" className="mobile-login" onClick={() => setMenuOpen(false)}>Member login</Link>
       </nav>
 
-      {/* ── HERO ── */}
-      <section className="hero-section" style={{ background: 'linear-gradient(160deg,#091529 0%,#1e3a6e 55%,#162d57 100%)', minHeight: '100vh', display: 'flex', alignItems: 'center', padding: '120px 40px 80px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: -120, right: -120, width: 520, height: 520, borderRadius: '50%', background: 'rgba(230,176,32,0.06)', pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', bottom: -80, left: -80, width: 360, height: 360, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }}/>
-        <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+      {/* HERO */}
+      <section id="top" className="hero-section">
+        <div className="hero-bg" style={bg(IMG.hero)} />
+        <div className="hero-overlay" />
+        <div className="hero-inner">
           <div className="hero-grid">
-            <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(230,176,32,0.12)', border: '1px solid rgba(230,176,32,0.3)', padding: '6px 16px', borderRadius: 99, marginBottom: 28 }}>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#f5c842' }}/>
-                <span style={{ fontSize: 13, color: '#f5c842', fontWeight: 500 }}>Nakuru, Kenya · Est. 2016</span>
-              </div>
-              <h1 className="hero-h1" style={{ fontFamily: 'Georgia,serif', fontSize: 'clamp(36px,5vw,60px)', fontWeight: 700, color: '#fff', lineHeight: 1.15, marginBottom: 22 }}>
-                Together We Rise,<br /><span style={{ color: '#f5c842' }}>Together We Thrive</span>
-              </h1>
-              <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', lineHeight: 1.8, marginBottom: 36, maxWidth: 480 }}>
-                Crater SDA Welfare Society unites members through mutual financial support —
-                death benefits, educational support, medical assistance for families in Crater Seventh Day Adventist Church.
+            <div className="hero-copy">
+              <div className="hero-badge"><i /> Nakuru, Kenya &middot; Est. 2016</div>
+              <h1 className="hero-h1">Together we rise,<br /><span>together we thrive</span></h1>
+              <p className="hero-p">
+                Crater SDA Welfare Society unites members through mutual financial support &mdash;
+                death benefits, educational support and medical assistance for families in Crater Seventh Day Adventist Church.
               </p>
-              <a href="#about" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', color: '#fff', padding: '13px 28px', borderRadius: 10, fontSize: 15, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.15)' }}>
-                Learn More <ChevronDown size={16} />
-              </a>
+              <div className="hero-actions">
+                <Link href="/login" className="btn-gold-lg">Member login <ArrowRight size={18} /></Link>
+                <a href="#about" className="btn-ghost-lg">Learn more <ChevronDown size={16} /></a>
+              </div>
             </div>
-            <div className="hero-card" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 36 }}>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 20, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Member Overview</div>
+            <div className="hero-card">
+              <div className="hero-card-title">Member overview</div>
               {[
-                { label: 'Registration Fee',    value: 'KES 500',             sub: 'Paid upon joining'                   },
-                { label: 'Family Contribution', value: 'KES 6,000',           sub: 'Payable annually (3-months upfront)' },
-                { label: 'Single Contribution', value: 'KES 2,400',           sub: 'Payable annually (3-months upfront)' },
-                { label: 'Death Benefit',       value: 'Available',           sub: 'For Principal Members/Next-of-kin'   },
-                { label: 'Medical Assistance',  value: 'Under Consideration', sub: 'For eligible members'                },
-                { label: 'Educational Support', value: 'Under Consideration', sub: 'For eligible members'                },
+                { label: 'Registration fee',    value: 'KES 500',             sub: 'Paid upon joining'                   },
+                { label: 'Family contribution', value: 'KES 6,000',           sub: 'Payable annually (3-months upfront)' },
+                { label: 'Single contribution', value: 'KES 2,400',           sub: 'Payable annually (3-months upfront)' },
+                { label: 'Death benefit',       value: 'Available',           sub: 'For principal members / next of kin' },
+                { label: 'Medical assistance',  value: 'Under consideration', sub: 'For eligible members'                },
+                { label: 'Educational support', value: 'Under consideration', sub: 'For eligible members'                },
               ].map(item => (
-                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div key={item.label} className="hero-row">
                   <div>
-                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{item.label}</div>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{item.sub}</div>
+                    <div className="hero-row-label">{item.label}</div>
+                    <div className="hero-row-sub">{item.sub}</div>
                   </div>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: '#f5c842', fontFamily: 'Georgia,serif' }}>{item.value}</div>
+                  <div className="hero-row-value">{item.value}</div>
                 </div>
               ))}
             </div>
           </div>
         </div>
+        <a href="#about" className="hero-scroll" aria-label="Scroll down"><ChevronDown size={26} /></a>
       </section>
 
-      {/* ── STATS ── */}
-      <section className="stats-section" style={{ background: '#0f2040', padding: '56px 40px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div className="stats-grid">
-            {STATS.map(s => (
-              <div key={s.label} style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'Georgia,serif', fontSize: 40, fontWeight: 700, color: '#f5c842' }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{s.label}</div>
+      {/* TRUST STRIP */}
+      <div className="trust-strip">
+        <div className="trust-inner">
+          {TRUST.map(({ Icon, text }) => (
+            <div key={text} className="trust-item"><Icon size={18} color="#e6b020" /> {text}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* STATS */}
+      <section className="stats-section">
+        <div className="stats-grid">
+          {STATS.map(s => (
+            <div key={s.label} className="stat">
+              <div className="stat-value">
+                {'text' in s && s.text ? s.text : <Counter to={s.to as number} prefix={(s as any).prefix} suffix={(s as any).suffix} />}
               </div>
-            ))}
-          </div>
+              <div className="stat-label">{s.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ── ABOUT ── */}
-      <section id="about" className="about-section" style={{ padding: '96px 40px', background: '#fff' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      {/* ABOUT */}
+      <section id="about" className="section" style={{ background: '#fff' }}>
+        <div className="container">
           <div className="about-grid">
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#e6b020', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14 }}>About Us</div>
-              <h2 style={{ fontFamily: 'Georgia,serif', fontSize: 36, fontWeight: 700, color: '#0f2040', lineHeight: 1.2, marginBottom: 20 }}>A Community Built on Trust and Solidarity</h2>
-              <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.8, marginBottom: 16 }}>
+            <Reveal variant="left" className="about-copy">
+              <h2 className="about-title">A community built on trust and solidarity</h2>
+              <p>
                 Founded in 2016, Crater SDA Welfare Society has served families across Crater Seventh Day Adventist Church with the belief that collective strength lifts every individual. We are member-owned, member-governed and driven by the values of our faith community.
               </p>
-              <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.8 }}>
-                Our digital platform brings transparency, speed and accountability to every contribution, claim and benefit — putting members in control of their welfare journey.
+              <p>
+                Our digital platform brings transparency, speed and accountability to every contribution, claim and benefit &mdash; putting members in control of their welfare journey.
               </p>
-            </div>
-            <div className="about-values">
-              {ABOUT_VALUES.map(({ Icon, title, desc }) => (
-                <div key={title} style={{ background: '#f8fafc', borderRadius: 14, padding: 22, border: '1px solid #e2e8f0' }}>
-                  <div className="value-icon-wrap">
-                    <Icon size={20} color="#e6b020" strokeWidth={1.75} />
-                  </div>
-                  <div style={{ fontWeight: 600, fontSize: 15, color: '#0f2040', marginBottom: 6 }}>{title}</div>
-                  <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{desc}</div>
+              <div className="mv-grid">
+                <div className="mv-card">
+                  <h4>Our mission</h4>
+                  <p>To lighten the burden of our members through collective care, open record keeping and timely support.</p>
                 </div>
-              ))}
-            </div>
+                <div className="mv-card">
+                  <h4>Our vision</h4>
+                  <p>A church family where no member faces hardship or loss alone.</p>
+                </div>
+              </div>
+            </Reveal>
+            <Reveal variant="right" className="about-visual">
+              <div className="about-photo" style={bg(IMG.about)} role="img" aria-label="Members of Crater SDA Welfare Society together" />
+              <div className="about-badge"><strong>2016</strong><span>Serving families in Nakuru</span></div>
+            </Reveal>
+          </div>
+
+          <div className="values-grid">
+            {ABOUT_VALUES.map(({ Icon, title, desc }, i) => (
+              <Reveal key={title} delay={i * 80}>
+                <div className="value-card">
+                  <div className="value-icon"><Icon size={20} color="#e6b020" strokeWidth={1.75} /></div>
+                  <h4>{title}</h4>
+                  <p>{desc}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── SERVICES ── */}
-      <section id="services" className="services-section" style={{ padding: '96px 40px', background: '#f8fafc' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 52 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#e6b020', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>What We Offer</div>
-            <h2 style={{ fontFamily: 'Georgia,serif', fontSize: 36, fontWeight: 700, color: '#0f2040' }}>Our Welfare Services</h2>
-          </div>
+      {/* SERVICES */}
+      <section id="services" className="section services-section">
+        <div className="container">
+          <SectionHead title="Our welfare services" sub="Support for the moments that matter, and the tools to manage your membership." />
           <div className="services-grid">
-            {SERVICES.map(({ Icon, title, desc }) => (
-              <div key={title} className="service-card">
-                <div className="service-icon-wrap">
-                  <Icon size={22} color="#1e3a6e" strokeWidth={1.75} />
+            {SERVICES.map(({ Icon, title, desc, tag }, i) => (
+              <Reveal key={title} delay={(i % 3) * 90}>
+                <div className="service-card">
+                  {tag && <span className="service-tag">{tag}</span>}
+                  <div className="service-icon"><Icon size={22} color="#1e3a6e" strokeWidth={1.75} /></div>
+                  <h3>{title}</h3>
+                  <p>{desc}</p>
                 </div>
-                <div style={{ fontWeight: 600, fontSize: 16, color: '#0f2040', marginBottom: 8 }}>{title}</div>
-                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>{desc}</div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section id="how" className="how-section" style={{ padding: '96px 40px', background: '#fff' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 60 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#e6b020', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>Getting Started</div>
-            <h2 style={{ fontFamily: 'Georgia,serif', fontSize: 36, fontWeight: 700, color: '#0f2040' }}>How It Works</h2>
-          </div>
+      {/* HOW IT WORKS */}
+      <section id="how" className="section how-section">
+        <div className="bg-img" style={bg(IMG.how)} />
+        <div className="bg-overlay how-overlay" />
+        <div className="container">
+          <SectionHead light title="How it works" sub="From registration to benefits in four steps." />
           <div className="steps-grid">
-            <div className="steps-line"/>
+            <div className="steps-line" />
             {STEPS.map(({ num, Icon, title, desc }, i) => (
-              <div key={num} style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-                <div style={{
-                  width: 54, height: 54, borderRadius: '50%',
-                  background: i === 3 ? '#e6b020' : '#1e3a6e',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 18px', border: '3px solid #fff',
-                  boxShadow: '0 4px 16px rgba(30,58,110,0.2)',
-                }}>
-                  <Icon size={22} color={i === 3 ? '#0f2040' : '#fff'} strokeWidth={1.75} />
+              <Reveal key={num} delay={i * 110}>
+                <div className="step">
+                  <div className={`step-dot ${i === 3 ? 'gold' : ''}`}>
+                    <Icon size={24} color={i === 3 ? '#0f2040' : '#fff'} strokeWidth={1.75} />
+                  </div>
+                  <div className="step-n">Step {Number(num)}</div>
+                  <h4>{title}</h4>
+                  <p>{desc}</p>
                 </div>
-                <div style={{ fontWeight: 600, fontSize: 15, color: '#0f2040', marginBottom: 8 }}>{title}</div>
-                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.65 }}>{desc}</div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="cta-section" style={{ background: 'linear-gradient(135deg,#091529,#1e3a6e)', padding: '80px 40px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 540, margin: '0 auto' }}>
-          <h2 style={{ fontFamily: 'Georgia,serif', fontSize: 34, fontWeight: 700, color: '#fff', marginBottom: 14 }}>Already a Member?</h2>
-          <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.6)', marginBottom: 32, lineHeight: 1.7 }}>
-            Log into your dashboard to check contributions, make payments, submit claims and view your welfare standing.
-          </p>
-          <Link href="/login" style={{ background: '#e6b020', color: '#0f2040', padding: '15px 48px', borderRadius: 12, fontSize: 16, fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            Member Login <ArrowRight size={18} />
-          </Link>
+      {/* GALLERY */}
+      <section id="gallery" className="section gallery-section">
+        <div className="container">
+          <SectionHead title="Life in our community" sub="Tap any photo to see it larger." />
+          <Gallery />
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer id="contact" className="footer-section" style={{ background: '#0f2040', padding: '64px 40px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div className="footer-grid">
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-                <Image src="/apple-touch-icon.png" alt="Crater SDA Welfare Society Logo" width={40} height={40} style={{ borderRadius: 9, objectFit: 'contain' }} />
-                <div>
-                  <div style={{ fontFamily: 'Georgia,serif', fontWeight: 700, fontSize: 15, color: '#fff' }}>Crater SDA Welfare</div>
-                  <div style={{ fontSize: 11, color: '#f5c842' }}>Nakuru, Kenya</div>
+      {/* UPDATES (sample content for now) */}
+      <section id="updates" className="section updates-section">
+        <div className="container">
+          <SectionHead title="Latest updates" sub="Notices and reminders from the welfare office." />
+          <div className="updates-grid">
+            {updates.map((u, i) => (
+              <Reveal key={u.title} delay={i * 90}>
+                <article className="update-card">
+                  <span className="update-tag">{u.tag}</span>
+                  <h3>{u.title}</h3>
+                  <p>{u.text}</p>
+                </article>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="section" style={{ background: '#fff' }}>
+        <div className="container">
+          <SectionHead title="Questions members ask" sub="Quick answers about joining, paying and claiming." />
+          <div className="faq-list">
+            {FAQ.map((f, i) => {
+              const open = openFaq === i
+              return (
+                <div key={f.q} className={`faq-item ${open ? 'open' : ''}`}>
+                  <button className="faq-q" onClick={() => setOpenFaq(open ? null : i)} aria-expanded={open}>
+                    {f.q}
+                    <Plus size={20} className="faq-plus" />
+                  </button>
+                  <div className="faq-a"><div><p>{f.a}</p></div></div>
                 </div>
-              </div>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 1.8, maxWidth: 300 }}>
-                Dedicated to lightening the burden of our members through collective care.
-              </p>
-              <p style={{ fontSize: 13, color: '#f5c842', lineHeight: 1.8, maxWidth: 300, marginTop: 8, fontStyle: 'italic' }}>
-                &ldquo;Bear ye one another&rsquo;s burdens, and so fulfil the law of Christ.&rdquo; Galatians 6:2 (KJV)
-              </p>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#f5c842', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 18 }}>Quick Links</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <a href="#about"    className="footer-nav-link">About</a>
-                <a href="#services" className="footer-nav-link">Services</a>
-                <a href="#how"      className="footer-nav-link">How it works</a>
-                <a href="mailto:doanemusa561@gmail.com" className="footer-nav-link">Contact Us</a>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#f5c842', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 18 }}>Legal & Policies</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <Link href="/legal/terms"   className="footer-nav-link">Terms of Service</Link>
-                <Link href="/legal/privacy" className="footer-nav-link">Privacy Policy</Link>
-                <Link href="/legal/cookies" className="footer-nav-link">Cookie Policy</Link>
-              </div>
-            </div>
+              )
+            })}
           </div>
+        </div>
+      </section>
 
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '40px 0 0' }} />
+      {/* CONTACT */}
+      <section id="contact" className="section contact-section">
+        <div className="bg-img" style={bg(IMG.contact)} />
+        <div className="bg-overlay contact-overlay" />
+        <div className="container">
+          <div className="contact-grid">
+            <Reveal variant="left" className="contact-info">
+              <h2>Get in touch</h2>
+              <p>Want to join, or need help with your account? Send us a message and an administrator will reach out.</p>
+              <a className="info-row" href="mailto:doanemusa561@gmail.com">
+                <span className="info-icon"><Mail size={20} color="#f5c842" /></span>
+                <span><div className="info-label">Email</div><div className="info-value">doanemusa561@gmail.com</div></span>
+              </a>
+              <div className="info-row">
+                <span className="info-icon"><MapPin size={20} color="#f5c842" /></span>
+                <span><div className="info-label">Location</div><div className="info-value">Crater SDA Church, Nakuru, Kenya</div></span>
+              </div>
+            </Reveal>
+            <Reveal variant="right"><ContactForm /></Reveal>
+          </div>
+        </div>
+      </section>
 
-          <div style={{ padding: '20px 0 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>
-              © {new Date().getFullYear()} Crater SDA Welfare Society · Nakuru, Kenya
+      {/* CTA */}
+      <section className="cta-section">
+        <div className="bg-img" style={bg(IMG.cta)} />
+        <div className="bg-overlay cta-overlay" />
+        <div className="cta-inner">
+          <h2>Already a member?</h2>
+          <p>Log into your dashboard to check contributions, make payments, submit claims and view your welfare standing.</p>
+          <Link href="/login" className="btn-gold-lg">Member login <ArrowRight size={18} /></Link>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="footer-section">
+        <div className="footer-grid">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+              <Image src="/apple-touch-icon.png" alt="Crater SDA Welfare Society logo" width={40} height={40} style={{ borderRadius: 9, objectFit: 'contain' }} />
+              <div>
+                <div style={{ fontFamily: 'Georgia,serif', fontWeight: 700, fontSize: 15, color: '#fff' }}>Crater SDA Welfare</div>
+                <div style={{ fontSize: 11, color: '#f5c842' }}>Nakuru, Kenya</div>
+              </div>
+            </div>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.8, maxWidth: 300 }}>
+              Dedicated to lightening the burden of our members through collective care.
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <Link href="/legal/terms"   className="footer-legal-link">Terms</Link>
-              <span style={{ color: 'rgba(255,255,255,0.1)', fontSize: 12 }}>·</span>
-              <Link href="/legal/privacy" className="footer-legal-link">Privacy</Link>
-              <span style={{ color: 'rgba(255,255,255,0.1)', fontSize: 12 }}>·</span>
-              <Link href="/legal/cookies" className="footer-legal-link">Cookies</Link>
+            <p style={{ fontSize: 13, color: '#f5c842', lineHeight: 1.8, maxWidth: 300, marginTop: 8, fontStyle: 'italic' }}>
+              &ldquo;Bear ye one another&rsquo;s burdens, and so fulfil the law of Christ.&rdquo; Galatians 6:2 (KJV)
+            </p>
+          </div>
+          <div>
+            <div className="footer-head">Quick links</div>
+            <div className="footer-col">
+              <a href="#about" className="footer-nav-link">About</a>
+              <a href="#services" className="footer-nav-link">Services</a>
+              <a href="#how" className="footer-nav-link">How it works</a>
+              <a href="#gallery" className="footer-nav-link">Gallery</a>
             </div>
           </div>
+          <div>
+            <div className="footer-head">Support</div>
+            <div className="footer-col">
+              <a href="#faq" className="footer-nav-link">FAQ</a>
+              <a href="#contact" className="footer-nav-link">Contact us</a>
+              <Link href="/login" className="footer-nav-link">Member login</Link>
+            </div>
+          </div>
+          <div>
+            <div className="footer-head">Legal and policies</div>
+            <div className="footer-col">
+              <Link href="/legal/terms" className="footer-nav-link">Terms of service</Link>
+              <Link href="/legal/privacy" className="footer-nav-link">Privacy policy</Link>
+              <Link href="/legal/cookies" className="footer-nav-link">Cookie policy</Link>
+            </div>
+          </div>
+        </div>
+        <div className="footer-line" />
+        <div className="footer-bottom">
+          <p className="footer-copy">&copy; {new Date().getFullYear()} Crater SDA Welfare Society &middot; Nakuru, Kenya</p>
+          <p className="powered">
+            Powered by{' '}
+            <a href="https://doanebrightpathdigital.com" target="_blank" rel="noopener noreferrer">Doane Brightpath Digital</a>
+          </p>
         </div>
       </footer>
 
-      {/* ── PUSH NOTIFICATION BANNER ── */}
+      {showTop && (
+        <button className="back-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Back to top">
+          <ArrowUp size={20} />
+        </button>
+      )}
+
       {showPushBanner && (
         <div className="push-banner" role="dialog" aria-label="Enable notifications">
           <p style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Bell size={16} color="#f5c842" style={{ flexShrink: 0 }} />
-            <span><strong style={{ color: '#fff' }}>Stay informed</strong> — get notified about contribution reminders, claim updates and society announcements.</span>
+            <span><strong style={{ color: '#fff' }}>Stay informed</strong> &mdash; get notified about contribution reminders, claim updates and society announcements.</span>
           </p>
           <div className="push-banner-actions">
-            <button className="push-btn-allow"   onClick={handleAllowPush}>Allow</button>
+            <button className="push-btn-allow" onClick={handleAllowPush}>Allow</button>
             <button className="push-btn-dismiss" onClick={handleDismissPush}>Not now</button>
           </div>
         </div>
       )}
 
-      {/* ── TOAST ── */}
       {toast && (
         <div className="notif-toast" role="status">
           <CheckCircle2 size={16} color="#f5c842" />
